@@ -50,7 +50,7 @@ data/raw/
 data/processed/
 data/demo/
 
-# If you later add labeling outputs
+# If we later add labeling outputs
 data/labels/
 data/frames/
 
@@ -61,7 +61,7 @@ data/frames/
 # Ultralytics default runs folder
 runs/
 
-# If you use a custom output folder
+# if custom output folder
 outputs/
 
 # Keep folder structure if needed
