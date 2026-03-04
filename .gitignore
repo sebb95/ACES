@@ -1,5 +1,6 @@
-
+# ----------------------------
 # Python / tooling
+# ----------------------------
 
 __pycache__/
 *.py[cod]
@@ -15,15 +16,30 @@ build/
 .coverage
 htmlcov/
 
+# Jupyter
+.ipynb_checkpoints/
+
+# Python packaging
+*.egg
+
+# ----------------------------
 # Virtual environments
+# ----------------------------
+
 .venv_aces/
 venv/
 env/
+.venv/
 
+# ----------------------------
 # IDE / OS
+# ----------------------------
+
 .DS_Store
 .idea/
 .vscode/
+*.swp
+*.swo
 
 # ----------------------------
 # Project: data & outputs
@@ -32,25 +48,69 @@ env/
 # Real data should never be committed
 data/raw/
 data/processed/
+data/demo/
 
 # If you later add labeling outputs
 data/labels/
 data/frames/
 
-# Runs/output artifacts (keep folder with .gitkeep only)
-runs/*
-!runs/.gitkeep
+# ----------------------------
+# Training / experiment outputs
+# ----------------------------
 
-# Model weights / exported models (common locations)
-models/
-checkpoints/
-weights/
+# Ultralytics default runs folder
+runs/
+
+# If you use a custom output folder
+outputs/
+
+# Keep folder structure if needed
+!runs/.gitkeep
 
 # Logs
 logs/
 *.log
 
+# ----------------------------
+# Model weights
+# ----------------------------
+
+# PyTorch / YOLO models
+*.pt
+*.pth
+*.onnx
+*.engine
+*.tflite
+*.pb
+
+models/
+checkpoints/
+weights/
+
+# ----------------------------
+# Large artifacts
+# ----------------------------
+
+*.zip
+*.tar
+*.tar.gz
+*.7z
+
+# ----------------------------
 # Secrets
+# ----------------------------
+
 .env
 .env.*
 !.env.example
+
+# ----------------------------
+# Misc ML experiment junk
+# ----------------------------
+
+wandb/
+tensorboard/
+events.out.tfevents*
+
+# Ultralytics cache
+datasets/
