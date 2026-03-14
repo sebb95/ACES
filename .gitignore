@@ -48,24 +48,30 @@ env/
 # Real data should never be committed
 data/raw/
 data/processed/
-data/demo/
 
 # If we later add labeling outputs
 data/labels/
 data/frames/
 
+# Sample dataset used for testing is allowed
+# data/sample/ is intentionally tracked
+
 # ----------------------------
 # Training / experiment outputs
 # ----------------------------
 
-# Ultralytics default runs folder
+# Ultralytics default runs folder if accidentally created
 runs/
+# Dataset cache files
+*.cache
 
-# if custom output folder
-outputs/
+# Training / experiment outputs
+runs/*
+outputs/*
 
-# Keep folder structure if needed
+# Keep folder structure
 !runs/.gitkeep
+!outputs/.gitkeep
 
 # Logs
 logs/
