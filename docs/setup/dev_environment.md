@@ -9,6 +9,9 @@ python3 -m venv .venv_aces
 macOS / Linux:
 source .venv_aces/bin/activate
 
+Win
+.venv_aces\Scripts\activate
+
 ## Install dependencies
 
 pip install -r requirements.txt
