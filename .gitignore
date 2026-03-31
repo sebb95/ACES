@@ -65,13 +65,18 @@ runs/
 # Dataset cache files
 *.cache
 
-# Training / experiment outputs
-runs/*
+# Training outputs
 outputs/*
 
-# Keep folder structure
-!runs/.gitkeep
+# Allow folder structure
+!outputs/
+!outputs/runs/
+!outputs/weights/
+
+# Allow placeholder files
 !outputs/.gitkeep
+!outputs/runs/.gitkeep
+!outputs/weights/.gitkeep
 
 # Logs
 logs/

@@ -1,3 +1,5 @@
+#rin file: python src.vision.detect.run_detect data/sample/val/images/
+
 import json
 import sys
 from pathlib import Path

@@ -1,4 +1,5 @@
-# src/vision/detect/detector.py
+# a separate detector class, kept for debugging or eventual modular implementation. 
+#runtime detection happens interlally within Ultralytics model.track() module in src/track/tracker.py
 
 from pathlib import Path
 from typing import Any
