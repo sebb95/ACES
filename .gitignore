@@ -67,6 +67,9 @@ runs/
 
 # Training outputs
 outputs/*
+outputs/
+runs/
+*.pt
 
 # Allow folder structure
 !outputs/
