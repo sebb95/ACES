@@ -1,10 +1,11 @@
-# src/vision/track/tracker.py
-
 from pathlib import Path
 from typing import Any
 
 import cv2
 from ultralytics import YOLO
+
+# --- NY IMPORT FOR ACTIVE LEARNING ---
+from src.vision.active_learning import trigger_hard_example_save
 
 
 class FishTracker:
@@ -77,6 +78,11 @@ class FishTracker:
         result = results[0]
         tracked_objects = []
 
+        # --- ACTIVE LEARNING: Hent originalbildet og maskene fra Ultralytics ---
+        orig_frame = result.orig_img 
+        masks = result.masks
+        # ----------------------------------------------------------------------
+
         boxes = result.boxes
         if boxes is not None and boxes.xyxy is not None:
             ids = boxes.id
@@ -85,6 +91,13 @@ class FishTracker:
                 xyxy = box.xyxy[0].tolist()
                 confidence = float(box.conf[0].item())
                 class_id = int(box.cls[0].item())
+
+                # --- ACTIVE LEARNING: Trigger lagring av usikre fisker ---
+                if masks is not None and len(masks.xyn) > i:
+                    # xyn er en liste med normaliserte segmenteringskoordinater
+                    mask_coords = masks.xyn[i].flatten().tolist()
+                    trigger_hard_example_save(orig_frame, mask_coords, confidence, class_id)
+                # ---------------------------------------------------------
 
                 track_id = None
                 if ids is not None:
