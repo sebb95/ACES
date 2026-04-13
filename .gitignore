@@ -128,3 +128,22 @@ events.out.tfevents*
 
 # Ultralytics cache
 datasets/
+
+# ---------------------------
+#UI metadata 
+# ---------------------------
+
+# Ignore runtime data
+data/history/sessions/*
+data/review_queue/pending/*
+data/review_queue/approved_today/*
+data/review_queue/approved_today/images/*
+data/review_queue/approved_today/labels/*
+data/sync_queue/*
+
+# Keep folder structure
+!data/history/sessions/.gitkeep
+!data/review_queue/pending/.gitkeep
+!data/review_queue/approved_today/images/.gitkeep
+!data/review_queue/approved_today/labels/.gitkeep
+!data/sync_queue/.gitkeep

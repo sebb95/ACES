@@ -16,61 +16,65 @@ CLASS_NAMES = {
 
 
 class ReviewService:
-    """
-    UI-facing adapter for the review page.
-
-    Wraps ReviewManager and enriches the returned data with:
-    - species name from class_id
-    - placeholder confidence
-    - placeholder queue list for future UI expansion
-    """
+    """UI-facing adapter for the review page."""
 
     def __init__(self):
         self.manager = ReviewManager()
 
-    def get_review_page_data(self) -> dict:
-        item = self.manager.get_next_item()
+    def get_review_page_data(self, selected_index: int = 0) -> dict:
+        pending_items = self.manager.list_pending_items()
 
-        if item is None:
+        species_options = list(CLASS_NAMES.values())
+
+        if not pending_items:
             return {
                 "trip_name": "Tur_2026_03_14",
                 "catch_id": "Okt_003",
                 "pending_count": 0,
                 "selected_item": None,
                 "queue": [],
-                "species_options": list(CLASS_NAMES.values()),
+                "species_options": species_options,
             }
 
-        class_id = item["class_id"]
-        species_name = CLASS_NAMES.get(class_id, f"Ukjent ({class_id})")
+        if selected_index < 0 or selected_index >= len(pending_items):
+            selected_index = 0
 
-        selected_item = {
-            "filename": item["filename"],
-            "path": item["path"],
-            "class_id": class_id,
-            "species_name": species_name,
-            "polygon": item["polygon"],
-            # Placeholder until confidence exists in backend
-            "confidence": 52,
-            # Placeholder until timestamp exists in backend
-            "timestamp": "12:03:21",
-        }
+        enriched_items = []
+        for item in pending_items:
+            class_id = item["class_id"]
+            species_name = CLASS_NAMES.get(class_id, f"Ukjent ({class_id})")
 
-        # Placeholder queue list for UI layout.
-        # Later this should come from a real list_pending_items() method.
+            enriched_items.append(
+                {
+                    "filename": item["filename"],
+                    "path": item["path"],
+                    "class_id": class_id,
+                    "species_name": species_name,
+                    "polygon": item["polygon"],
+                    "confidence": item.get("confidence"),
+                    "timestamp": item.get("timestamp"),
+                }
+            )
+
+        selected_item = enriched_items[selected_index]
+
         queue = [
-            {"timestamp": "12:03:21", "prediction": "Sei?", "confidence": 52},
-            {"timestamp": "12:05:03", "prediction": "Ukjent", "confidence": 41},
-            {"timestamp": "12:08:11", "prediction": "Torsk?", "confidence": 58},
+            {
+                "filename": item["filename"],
+                "timestamp": item["timestamp"],
+                "prediction": item["species_name"],
+                "confidence": item["confidence"],
+            }
+            for item in enriched_items
         ]
 
         return {
             "trip_name": "Tur_2026_03_14",
             "catch_id": "Okt_003",
-            "pending_count": len(queue),  # placeholder for now
+            "pending_count": len(queue),
             "selected_item": selected_item,
             "queue": queue,
-            "species_options": list(CLASS_NAMES.values()),
+            "species_options": species_options,
         }
 
     def approve(self, filename: str) -> None:
