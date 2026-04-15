@@ -147,20 +147,20 @@ def _render_action_panel(
         timestamp = selected_item.get("timestamp", "--:--:--")
         default_index = species_options.index(prediction) if prediction in species_options else 0
 
-    col1, col2, col3, col4 = st.columns([1.2, 1.2, 1.2, 1.1])
+    info_col, actions_col = st.columns([1.2, 2.2])
 
-    with col1:
+    with info_col:
         st.markdown(
             f"""
             <div style="
                 font-size:1.1rem;
-                line-height:1.6;
-                padding-top:0.3rem;
+                line-height:1.8;
+                padding-top:0.2rem;
             ">
-                AI forslag: {prediction}<br>
-                Konfidens: {confidence_text}<br>
-                Tidspunkt: {timestamp}<br>
-                Fil: {filename}
+                <b>AI forslag:</b> {prediction}<br>
+                <b>Konfidens:</b> {confidence_text}<br>
+                <b>Tidspunkt:</b> {timestamp}<br>
+                <b>Fil:</b> {filename}
             </div>
             """,
             unsafe_allow_html=True,
@@ -169,64 +169,78 @@ def _render_action_panel(
         if is_disabled:
             st.caption("Ingen elementer tilgjengelig for handling.")
 
-    with col2:
-        approve_clicked = st.button(
-            "Bekreft forslag",
-            use_container_width=True,
-            key="approve_btn",
-            disabled=is_disabled,
-        )
+    with actions_col:
+        # Row 1
+        row1_col1, row1_col2, row1_col3 = st.columns(3)
 
-        if approve_clicked and selected_item is not None:
-            review_service.approve(filename)
-            st.success("Forslag bekreftet.")
-            st.rerun()
+        with row1_col1:
+            approve_clicked = st.button(
+                "Bekreft forslag",
+                use_container_width=True,
+                key="approve_btn",
+                disabled=is_disabled,
+            )
 
-    with col3:
-        new_species = st.selectbox(
-            "Endre art",
-            options=species_options,
-            index=default_index,
-            key="species_select",
-            disabled=is_disabled,
-        )
+        with row1_col2:
+            reject_clicked = st.button(
+                "Avvis",
+                use_container_width=True,
+                key="reject_btn",
+                disabled=is_disabled,
+                type="primary",   # this one gets theme primary color
+            )
 
-        change_species_clicked = st.button(
-            "Lagre art",
-            use_container_width=True,
-            key="change_species_btn",
-            disabled=is_disabled,
-        )
+        with row1_col3:
+            send_to_land_clicked = st.button(
+                "Til land",
+                use_container_width=True,
+                key="send_to_land_btn",
+                disabled=is_disabled,
+            )
 
-        if change_species_clicked and selected_item is not None:
-            review_service.change_species(filename, new_species)
-            st.success("Art oppdatert.")
-            st.rerun()
+        # Row 2
+        row2_col1, row2_col2, row2_col3 = st.columns(3)
 
-    with col4:
-        reject_clicked = st.button(
-            "Avvis",
-            use_container_width=True,
-            key="reject_btn",
-            disabled=is_disabled,
-        )
+        with row2_col1:
+            new_species = st.selectbox(
+                "Endre art",
+                options=species_options,
+                index=default_index,
+                key="species_select",
+                disabled=is_disabled,
+            )
 
-        if reject_clicked and selected_item is not None:
-            review_service.reject(filename)
-            st.warning("Element avvist.")
-            st.rerun()
+        with row2_col2:
+            st.markdown("<div style='margin-top: 1.7rem;'></div>", unsafe_allow_html=True)
+            change_species_clicked = st.button(
+                "Lagre art",
+                use_container_width=True,
+                key="change_species_btn",
+                disabled=is_disabled,
+            )
 
-        send_to_land_clicked = st.button(
-            "Til land",
-            use_container_width=True,
-            key="send_to_land_btn",
-            disabled=is_disabled,
-        )
+        with row2_col3:
+            st.empty()
 
-        if send_to_land_clicked and selected_item is not None:
-            review_service.send_to_land(filename)
-            st.info("Element sendt til sync-kø.")
-            st.rerun()
+    if approve_clicked and selected_item is not None:
+        review_service.approve(filename)
+        st.success("Forslag bekreftet.")
+        st.rerun()
+
+    if change_species_clicked and selected_item is not None:
+        review_service.change_species(filename, new_species)
+        st.success("Art oppdatert.")
+        st.rerun()
+
+    if reject_clicked and selected_item is not None:
+        review_service.reject(filename)
+        st.warning("Element avvist.")
+        st.rerun()
+
+    if send_to_land_clicked and selected_item is not None:
+        review_service.send_to_land(filename)
+        st.info("Element sendt til sync-kø.")
+        st.rerun()
 
     st.markdown("</div>", unsafe_allow_html=True)
 

@@ -90,3 +90,6 @@ class ReviewService:
         reverse_map = {name: class_id for class_id, name in CLASS_NAMES.items()}
         new_class_id = reverse_map[new_species_name]
         self.manager.action_change_species(filename, new_class_id)
+
+    def get_pending_count(self) -> int:
+        return len(self.manager.list_pending_items())
