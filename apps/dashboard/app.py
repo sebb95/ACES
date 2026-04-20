@@ -1,4 +1,15 @@
 #run from bash: streamlit run apps/dashboard/app.py
+import sys
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+SRC_PATH = PROJECT_ROOT / "src"
+
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+if str(SRC_PATH) not in sys.path:
+    sys.path.insert(0, str(SRC_PATH))
 
 import streamlit as st
 
@@ -7,6 +18,9 @@ from pages.history_page import render_history_page
 from pages.home_page import render_home_page
 from pages.review_page import render_review_page
 from pages.settings_page import render_settings_page
+from pathlib import Path
+
+
 
 st.set_page_config(
     page_title="ACES Dashboard",

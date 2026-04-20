@@ -1,6 +1,7 @@
 import shutil
 from pathlib import Path
 from datetime import datetime
+from src.common.species import CLASS_NAMES, NAME_TO_CLASS_ID
 
 
 class ReviewManager:

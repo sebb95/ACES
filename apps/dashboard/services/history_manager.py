@@ -1,4 +1,4 @@
-#lägga till senare: export a session; filter by trip; validate schema; write sessions
+#lägga till senare: export a session; filter by trip; validate schema
 
 
 from __future__ import annotations

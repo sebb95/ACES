@@ -1,18 +1,5 @@
 from services.review_manager import ReviewManager
-
-
-CLASS_NAMES = {
-    0: "Breiflab",
-    1: "Brosme",
-    2: "Flyndre",
-    3: "Hyse",
-    4: "Kveite",
-    5: "Lange",
-    6: "Lyr",
-    7: "Sei",
-    8: "Torsk",
-    9: "Uer",
-}
+from src.common.species import CLASS_NAMES, NAME_TO_CLASS_ID
 
 
 class ReviewService:
@@ -87,8 +74,7 @@ class ReviewService:
         self.manager.action_send_to_land(filename)
 
     def change_species(self, filename: str, new_species_name: str) -> None:
-        reverse_map = {name: class_id for class_id, name in CLASS_NAMES.items()}
-        new_class_id = reverse_map[new_species_name]
+        new_class_id = NAME_TO_CLASS_ID[new_species_name]
         self.manager.action_change_species(filename, new_class_id)
 
     def get_pending_count(self) -> int:

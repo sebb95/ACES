@@ -5,7 +5,7 @@ import cv2
 from ultralytics import YOLO
 
 # --- NY IMPORT FOR ACTIVE LEARNING ---
-from src.vision.active_learning import trigger_hard_example_save
+from src.vision.active_learning_logic import trigger_hard_example_save
 
 
 class FishTracker:

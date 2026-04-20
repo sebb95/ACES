@@ -1,9 +1,13 @@
 import streamlit as st
 
-from services.dashboard_service import get_dashboard_data
+from services.home_service import HomeService
 
 
-def _render_left_panel(trip_name: str, catch_id: str, session_running: bool) -> None:
+def _render_left_panel(
+    trip_name: str,
+    catch_id: str,
+    session_running: bool,
+) -> tuple[bool, bool]:
     st.markdown("### TUR")
     st.text_input(
         label="Tur",
@@ -38,13 +42,7 @@ def _render_left_panel(trip_name: str, catch_id: str, session_running: bool) -> 
     st.write("")
     st.write("")
 
-    if start_clicked:
-        st.session_state["session_running"] = True
-        st.success("Økt startet.")
-
-    if stop_clicked:
-        st.session_state["session_running"] = False
-        st.warning("Økt stoppet.")
+    return start_clicked, stop_clicked
 
 
 def _render_main_metrics(total_count: int, estimated_weight_kg: int) -> None:
@@ -105,21 +103,33 @@ def _render_species_rows(species: list[dict]) -> None:
 
 
 def render_home_page() -> None:
-    data = get_dashboard_data()
+    service = HomeService()
 
-    if "session_running" not in st.session_state:
-        st.session_state["session_running"] = data["session_running"]
+    if service.is_running():
+        service.step()
+
+    data = service.get_home_page_data()
 
     st.session_state["review_pending"] = data["status"]["review_pending"]
 
     left_col, right_col = st.columns([1, 2.15], gap="small")
 
     with left_col:
-        _render_left_panel(
+        start_clicked, stop_clicked = _render_left_panel(
             trip_name=data["trip_name"],
             catch_id=data["catch_id"],
-            session_running=st.session_state["session_running"],
+            session_running=data["session_running"],
         )
+
+    if start_clicked:
+        service.start()
+        st.success("Økt startet.")
+        st.rerun()
+
+    if stop_clicked:
+        service.stop()
+        st.warning("Økt stoppet.")
+        st.rerun()
 
     with right_col:
         _render_main_metrics(
