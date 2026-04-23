@@ -134,3 +134,11 @@ class FishTracker:
         Useful when starting a new independent sequence.
         """
         self.model = YOLO(str(self.weights_path))
+
+    def set_weights_path(self, weights_path: str) -> None:
+        self.weights_path = Path(weights_path)
+
+        if not self.weights_path.exists():
+            raise FileNotFoundError(f"Weights file not found: {self.weights_path}")
+
+        self.model = YOLO(str(self.weights_path))

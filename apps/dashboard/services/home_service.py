@@ -1,4 +1,4 @@
-#Bridge till home_page UI
+# Bridge till home_page UI
 
 import streamlit as st
 
@@ -8,14 +8,6 @@ from services.session_service import SessionService
 
 from src.vision.track.tracker import FishTracker
 from src.vision.count.counter import LineCounter, CountConfig
-
-
-def build_image_iterator():
-    from pathlib import Path
-
-    images = sorted((Path("data/sample/val/images")).glob("*.*"))
-    for image_path in images:
-        yield str(image_path)
 
 
 class HomeService:
@@ -44,7 +36,6 @@ class HomeService:
                 tracker=tracker,
                 counter=counter,
                 session_service=session_service,
-                image_source_factory=build_image_iterator,
             )
 
         return st.session_state["home_manager"]

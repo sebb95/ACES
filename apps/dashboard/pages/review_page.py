@@ -139,6 +139,7 @@ def _render_action_panel(
         filename = "-"
         timestamp = "--:--:--"
         default_index = 0
+        class_id = None
     else:
         prediction = selected_item["species_name"]
         confidence = selected_item.get("confidence")
@@ -146,6 +147,7 @@ def _render_action_panel(
         filename = selected_item["filename"]
         timestamp = selected_item.get("timestamp", "--:--:--")
         default_index = species_options.index(prediction) if prediction in species_options else 0
+        class_id = selected_item["class_id"]
 
     info_col, actions_col = st.columns([1.2, 2.2])
 
@@ -170,7 +172,6 @@ def _render_action_panel(
             st.caption("Ingen elementer tilgjengelig for handling.")
 
     with actions_col:
-        # Row 1
         row1_col1, row1_col2, row1_col3 = st.columns(3)
 
         with row1_col1:
@@ -187,7 +188,7 @@ def _render_action_panel(
                 use_container_width=True,
                 key="reject_btn",
                 disabled=is_disabled,
-                type="primary",   # this one gets theme primary color
+                type="primary",
             )
 
         with row1_col3:
@@ -198,7 +199,6 @@ def _render_action_panel(
                 disabled=is_disabled,
             )
 
-        # Row 2
         row2_col1, row2_col2, row2_col3 = st.columns(3)
 
         with row2_col1:
@@ -228,12 +228,12 @@ def _render_action_panel(
         st.rerun()
 
     if change_species_clicked and selected_item is not None:
-        review_service.change_species(filename, new_species)
+        review_service.change_species(filename, class_id, new_species)
         st.success("Art oppdatert.")
         st.rerun()
 
     if reject_clicked and selected_item is not None:
-        review_service.reject(filename)
+        review_service.reject(filename, class_id)
         st.warning("Element avvist.")
         st.rerun()
 
@@ -259,7 +259,6 @@ def render_review_page() -> None:
     selected_item = data["selected_item"]
     species_options = data["species_options"]
 
-    # Keep selected index valid if queue shrank after actions
     if queue and st.session_state["selected_review_index"] >= len(queue):
         st.session_state["selected_review_index"] = 0
         selected_item = data["selected_item"]

@@ -95,3 +95,39 @@ class SessionService:
 
         next_number = max(existing_numbers, default=0) + 1
         return f"okt_{next_number:03d}_{today_str}"
+    
+    def decrement_species_count(self, species_name: str, amount: int = 1) -> None:
+        session = self.get_active_session()
+        if not session:
+            return
+
+        counts = session["species_counts"]
+
+        if species_name not in counts:
+            counts[species_name] = 0
+
+        counts[species_name] = max(0, counts[species_name] - amount)
+        session["total_count"] = max(0, session["total_count"] - amount)
+
+        state.set_active_session(session)    
+
+
+    def reassign_species_count(self, old_species: str, new_species: str) -> None:
+        session = self.get_active_session()
+        if not session:
+            return
+
+        counts = session["species_counts"]
+
+        if old_species not in counts:
+            counts[old_species] = 0
+        if new_species not in counts:
+            counts[new_species] = 0
+
+        if counts[old_species] > 0:
+            counts[old_species] -= 1
+
+        counts[new_species] += 1
+        session["total_count"] = sum(counts.values())
+
+        state.set_active_session(session)

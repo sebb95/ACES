@@ -1,0 +1,19 @@
+{
+    "model": {
+        "selected_model": "baseline_best.pt"
+    },
+    "input": {
+        "dataset_path": "data/sample/val/images"
+    },
+    "camera": {
+        "fps": 30
+    },
+    "species": {
+        "torsk_weight": 2.4,
+        "sei_weight": 2.0,
+        "bifangst_weight": 2.2
+    },
+    "active_learning": {
+        "uncertainty_threshold": 0.6
+    }
+}

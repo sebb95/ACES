@@ -1,4 +1,5 @@
 from services.review_manager import ReviewManager
+from services.session_service import SessionService
 from src.common.species import CLASS_NAMES, NAME_TO_CLASS_ID
 
 
@@ -7,6 +8,7 @@ class ReviewService:
 
     def __init__(self):
         self.manager = ReviewManager()
+        self.session_service = SessionService()
 
     def get_review_page_data(self, selected_index: int = 0) -> dict:
         pending_items = self.manager.list_pending_items()
@@ -67,15 +69,23 @@ class ReviewService:
     def approve(self, filename: str) -> None:
         self.manager.action_approve(filename)
 
-    def reject(self, filename: str) -> None:
+    def reject(self, filename: str, class_id: int) -> None:
         self.manager.action_reject(filename)
+
+        species_name = CLASS_NAMES.get(class_id, f"Ukjent ({class_id})")
+        self.session_service.decrement_species_count(species_name)
+        self.session_service.increment_corrections()
 
     def send_to_land(self, filename: str) -> None:
         self.manager.action_send_to_land(filename)
 
-    def change_species(self, filename: str, new_species_name: str) -> None:
+    def change_species(self, filename: str, old_class_id: int, new_species_name: str) -> None:
         new_class_id = NAME_TO_CLASS_ID[new_species_name]
         self.manager.action_change_species(filename, new_class_id)
+
+        old_species_name = CLASS_NAMES.get(old_class_id, f"Ukjent ({old_class_id})")
+        self.session_service.reassign_species_count(old_species_name, new_species_name)
+        self.session_service.increment_corrections()
 
     def get_pending_count(self) -> int:
         return len(self.manager.list_pending_items())
