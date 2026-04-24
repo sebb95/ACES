@@ -1,9 +1,12 @@
 {
     "model": {
-        "selected_model": "baseline_best.pt"
+        "selected_model": "best.pt"
     },
     "input": {
-        "dataset_path": "data/sample/val/images"
+        "input_type": "image_folder",
+        "dataset_path": "data/sample/val/images",
+        "video_path": "data/input/video.mp4",
+        "frame_output_path": "data/processed/frames/current_run"
     },
     "camera": {
         "fps": 30
@@ -14,6 +17,14 @@
         "bifangst_weight": 2.2
     },
     "active_learning": {
-        "uncertainty_threshold": 0.6
+        "review_min_confidence": 0.3,
+        "review_max_confidence": 0.64
+    },
+    "training": {
+        "status": "idle",
+        "selected_model": "best.pt",
+        "dataset_path": "data/training_reviewed",
+        "night_training_enabled": false,
+        "night_training_time": "03:00"
     }
 }
