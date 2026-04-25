@@ -2,7 +2,7 @@ from ultralytics import YOLO
 
 if __name__ == '__main__':
     print("Laster inn FP32-modell...")
-    model = YOLO("best.pt")
+    model = YOLO(r"runs\YOLOv11_Medium_Seg\weights\best.pt")
 
     print("Starter TensorRT-kvantisering (FP16)... Dette kan ta 10-15 minutter!")
     # workspace=4 betyr at den får låne 4GB VRAM under selve byggingen
