@@ -4,9 +4,6 @@ from typing import Any
 import cv2
 from ultralytics import YOLO
 
-# --- NY IMPORT FOR ACTIVE LEARNING ---
-from src.vision.active_learning_logic import trigger_hard_example_save
-
 
 class FishTracker:
     """
@@ -19,9 +16,9 @@ class FishTracker:
     - save annotated tracking outputs
     - return structured tracked objects
 
-    Note:
-    This implementation uses Ultralytics tracking mode with tracker='bytetrack.yaml'
-    and persist=True so that track state is preserved across consecutive frames.
+    Important:
+    - This class does NOT save anything to review.
+    - Active learning/review decisions happen after counting in HomeManager.
     """
 
     def __init__(
@@ -47,16 +44,15 @@ class FishTracker:
         """
         Run ByteTrack on one frame.
 
-        Args:
-            image_path: Path to input image
-            save_dir: Directory for annotated output frame
-
         Returns:
-            Dictionary containing:
-            - image_path
-            - tracked_objects
-            - num_tracks
-            - saved_image
+            {
+                "image_path": str,
+                "tracked_objects": list[dict],
+                "num_tracks": int,
+                "track_ids": list[int | None],
+                "original_frame": np.ndarray,
+                "saved_image": str,
+            }
         """
         image_path = Path(image_path)
         save_dir = Path(save_dir)
@@ -76,14 +72,12 @@ class FishTracker:
         )
 
         result = results[0]
+        orig_frame = result.orig_img
+        masks = result.masks
+        boxes = result.boxes
+
         tracked_objects = []
 
-        # --- ACTIVE LEARNING: Hent originalbildet og maskene fra Ultralytics ---
-        orig_frame = result.orig_img 
-        masks = result.masks
-        # ----------------------------------------------------------------------
-
-        boxes = result.boxes
         if boxes is not None and boxes.xyxy is not None:
             ids = boxes.id
 
@@ -91,13 +85,6 @@ class FishTracker:
                 xyxy = box.xyxy[0].tolist()
                 confidence = float(box.conf[0].item())
                 class_id = int(box.cls[0].item())
-
-                # --- ACTIVE LEARNING: Trigger lagring av usikre fisker ---
-                if masks is not None and len(masks.xyn) > i:
-                    # xyn er en liste med normaliserte segmenteringskoordinater
-                    mask_coords = masks.xyn[i].flatten().tolist()
-                    trigger_hard_example_save(orig_frame, mask_coords, confidence, class_id)
-                # ---------------------------------------------------------
 
                 track_id = None
                 if ids is not None:
@@ -107,14 +94,20 @@ class FishTracker:
                 center_x = round((x1 + x2) / 2, 2)
                 center_y = round((y1 + y2) / 2, 2)
 
-                tracked_obj = {
-                    "track_id": track_id,
-                    "bbox": [round(v, 2) for v in xyxy],
-                    "confidence": round(confidence, 4),
-                    "class_id": class_id,
-                    "center": [center_x, center_y],
-                }
-                tracked_objects.append(tracked_obj)
+                mask_coords = []
+                if masks is not None and len(masks.xyn) > i:
+                    mask_coords = masks.xyn[i].flatten().tolist()
+
+                tracked_objects.append(
+                    {
+                        "track_id": track_id,
+                        "bbox": [round(v, 2) for v in xyxy],
+                        "confidence": round(confidence, 4),
+                        "class_id": class_id,
+                        "center": [center_x, center_y],
+                        "mask_coords": mask_coords,
+                    }
+                )
 
         annotated_image = result.plot()
         output_image_path = save_dir / image_path.name
@@ -124,14 +117,14 @@ class FishTracker:
             "image_path": str(image_path),
             "tracked_objects": tracked_objects,
             "num_tracks": len(tracked_objects),
+            "track_ids": [obj["track_id"] for obj in tracked_objects],
+            "original_frame": orig_frame,
             "saved_image": str(output_image_path),
         }
 
     def reset(self) -> None:
         """
-        Reset tracking state by reloading the model.
-
-        Useful when starting a new independent sequence.
+        Reset tracking state for a new independent sequence.
         """
         self.model = YOLO(str(self.weights_path))
 
