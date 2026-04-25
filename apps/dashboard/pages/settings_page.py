@@ -1,6 +1,6 @@
 import streamlit as st
+import time
 from pathlib import Path
-
 from services.settings_service import SettingsService
 
 
@@ -61,6 +61,14 @@ def render_settings_page() -> None:
     active_learning_config = config.get("active_learning", {})
     training_config = config.get("training", {})
 
+    current_input_type = input_config.get("input_type", "image_folder")
+    current_dataset_path = input_config.get("dataset_path", "data/sample")
+    current_video_path = input_config.get("video_path", "data/input/video.mp4")
+    current_frame_output_path = input_config.get(
+        "frame_output_path",
+        "data/processed/frames/current_run",
+    )
+
     st.markdown(
         """
         <div style="
@@ -74,159 +82,29 @@ def render_settings_page() -> None:
         unsafe_allow_html=True,
     )
 
-    left_col, right_col = st.columns(2, gap="large")
+    st.markdown("### SYSTEMSTATUS")
 
-    with left_col:
-        _render_section_title("Kamera / Input")
+    status_col1, status_col2, status_col3 = st.columns(3)
 
-        fps = st.number_input(
-            "FPS",
-            min_value=1,
-            max_value=60,
-            value=int(camera_config.get("fps", 10)),
-            step=1,
-        )
+    config_path = Path("configs/runtime_config.json")
+    weights_path = Path("outputs/weights")
+    dataset_folder = Path(current_dataset_path)
+    video_file = Path(current_video_path)
 
-        input_type = st.selectbox(
-            "Input-type",
-            options=["image_folder", "video_file"],
-            index=0 if input_config.get("input_type", "image_folder") == "image_folder" else 1,
-            help="Foreløpig bruker runtime bilde-mappe. Video kan senere pakkes ut til frames.",
-        )
-
-        current_dataset_path = input_config.get("dataset_path", "data/sample")
-        dataset_path = st.text_input(
-            "Dataset / frame-mappe",
-            value=current_dataset_path,
-            help="Mappe med bilder/frames som skal brukes i runtime.",
-        )
-
-        current_video_path = input_config.get("video_path", "data/input/video.mp4")
-        video_path = st.text_input(
-            "Videofil",
-            value=current_video_path,
-            help="Plassholder for senere video-input. Video pakkes senere ut til frames.",
-        )
-
-        frame_output_path = st.text_input(
-            "Frame-output fra video",
-            value=input_config.get("frame_output_path", "data/processed/frames/current_run"),
-            help="Hvor frames fra video skal lagres når video-støtte kobles på.",
-        )
-
-        _render_section_title("Modell")
-
-        weight_files = _get_available_weight_files()
-        current_model = model_config.get("selected_model", "best.pt")
-
-        if weight_files:
-            selected_model = st.selectbox(
-                "Velg modellfil",
-                weight_files,
-                index=weight_files.index(current_model) if current_model in weight_files else 0,
-                help="Bytte av .pt-fil fungerer som modellbytte/rollback.",
-            )
-            st.caption(f"Valgt modell: {selected_model}")
-        else:
-            selected_model = current_model
-            st.warning("Ingen vektfiler funnet i outputs/weights")
-
-        _render_section_title("Trening placeholder")
-
-        training_model = st.selectbox(
-            "Modell for trening",
-            options=weight_files if weight_files else [selected_model],
-            index=0,
-        )
-
-        training_dataset_path = st.text_input(
-            "Treningsdataset",
-            value=training_config.get("dataset_path", "data/training_reviewed"),
-        )
-
-        night_training_enabled = st.checkbox(
-            "Aktiver natt-trening",
-            value=bool(training_config.get("night_training_enabled", False)),
-        )
-
-        night_training_time = st.text_input(
-            "Tidspunkt for natt-trening",
-            value=training_config.get("night_training_time", "03:00"),
-        )
-
-        training_status = training_config.get("status", "idle")
-        st.info(f"Treningsstatus: {training_status}")
-
-        if st.button("Start trening", use_container_width=True):
-            st.warning("Trening er foreløpig bare en placeholder.")
-
-    with right_col:
-        _render_section_title("Art og vekt")
-
-        torsk = st.number_input(
-            "Torsk snittvekt (kg)",
-            min_value=0.0,
-            value=float(species_config.get("torsk_weight", 0.0)),
-            step=0.1,
-        )
-
-        sei = st.number_input(
-            "Sei snittvekt (kg)",
-            min_value=0.0,
-            value=float(species_config.get("sei_weight", 0.0)),
-            step=0.1,
-        )
-
-        bifangst = st.number_input(
-            "Bifangst snittvekt (kg)",
-            min_value=0.0,
-            value=float(species_config.get("bifangst_weight", 0.0)),
-            step=0.1,
-        )
-
-        st.caption("Disse vektene brukes foreløpig bare til estimert fangstvekt i UI.")
-
-        _render_section_title("Gjennomgang / Active Learning")
-
-        review_min_confidence = st.slider(
-            "Nedre grense for review",
-            min_value=0.0,
-            max_value=1.0,
-            value=float(active_learning_config.get("review_min_confidence", 0.30)),
-            step=0.01,
-            help="Under denne verdien ignoreres det som støy/rot.",
-        )
-
-        review_max_confidence = st.slider(
-            "Øvre grense for review",
-            min_value=0.0,
-            max_value=1.0,
-            value=float(active_learning_config.get("review_max_confidence", 0.80)),
-            step=0.01,
-            help="Mellom nedre og øvre grense sendes telt fisk til review.",
-        )
-
-        if review_min_confidence > review_max_confidence:
-            st.error("Nedre grense kan ikke være høyere enn øvre grense.")
-
-        _render_section_title("Systemstatus")
-
-        config_path = Path("configs/runtime_config.json")
-        weights_path = Path("outputs/weights")
-        dataset_folder = Path(dataset_path)
-        video_file = Path(video_path)
-
+    with status_col1:
         if config_path.exists():
             st.success("Konfigurasjon: OK")
         else:
             st.error("Konfigurasjon: MANGEL")
 
+    with status_col2:
         if weights_path.exists() and any(weights_path.glob("*.pt")):
             st.success("Modellfiler: OK")
         else:
             st.error("Modellfiler: MANGEL")
 
-        if input_type == "image_folder":
+    with status_col3:
+        if current_input_type == "image_folder":
             if dataset_folder.exists() and dataset_folder.is_dir():
                 st.success("Bilde-/frame-mappe: OK")
             else:
@@ -236,6 +114,166 @@ def render_settings_page() -> None:
                 st.success("Videofil: OK")
             else:
                 st.warning("Videofil finnes ikke ennå")
+
+    left_col, right_col = st.columns(2, gap="large")
+
+    with left_col:
+
+        with st.expander("Kamera / Input", expanded=False):
+
+            fps = st.number_input(
+                "FPS",
+                min_value=1,
+                max_value=60,
+                value=int(camera_config.get("fps", 10)),
+                step=1,
+            )
+
+            input_type = st.selectbox(
+                "Input-type",
+                options=["image_folder", "video_file"],
+                index=0 if input_config.get("input_type", "image_folder") == "image_folder" else 1,
+                help="Foreløpig bruker runtime bilde-mappe. Video kan senere pakkes ut til frames.",
+            )
+
+            current_dataset_path = input_config.get("dataset_path", "data/sample")
+            dataset_path = st.text_input(
+                "Dataset / frame-mappe",
+                value=current_dataset_path,
+                help="Mappe med bilder/frames som skal brukes i runtime.",
+            )
+
+            current_video_path = input_config.get("video_path", "data/input/video.mp4")
+            video_path = st.text_input(
+                "Videofil",
+                value=current_video_path,
+                help="Plassholder for senere video-input. Video pakkes senere ut til frames.",
+            )
+
+            frame_output_path = st.text_input(
+                "Frame-output fra video",
+                value=input_config.get("frame_output_path", "data/processed/frames/current_run"),
+                help="Hvor frames fra video skal lagres når video-støtte kobles på.",
+            )
+
+        with st.expander("Modell", expanded=False):
+
+            weight_files = _get_available_weight_files()
+            current_model = model_config.get("selected_model", "best.pt")
+
+            if weight_files:
+                selected_model = st.selectbox(
+                    "Velg modellfil",
+                    weight_files,
+                    index=weight_files.index(current_model) if current_model in weight_files else 0,
+                    help="Bytte av .pt-fil fungerer som modellbytte/rollback.",
+                )
+                st.caption(f"Valgt modell: {selected_model}")
+            else:
+                selected_model = current_model
+                st.warning("Ingen vektfiler funnet i outputs/weights")
+
+        with st.expander("Trening", expanded=False):
+
+            training_model = st.selectbox(
+                "Modell for trening",
+                options=weight_files if weight_files else [selected_model],
+                index=0,
+            )
+
+            training_dataset_path = st.text_input(
+                "Treningsdataset",
+                value=training_config.get("dataset_path", "data/training_reviewed"),
+            )
+
+            night_training_enabled = st.checkbox(
+                "Aktiver natt-trening",
+                value=bool(training_config.get("night_training_enabled", False)),
+            )
+
+            night_training_time = st.text_input(
+                "Tidspunkt for natt-trening",
+                value=training_config.get("night_training_time", "03:00"),
+            )
+
+            training_status = training_config.get("status", "idle")
+            st.info(f"Treningsstatus: {training_status}")
+
+            if st.button("Start trening", use_container_width=True):
+                st.warning("Trening er foreløpig bare en placeholder.")
+
+    with right_col:
+        with st.expander("Art og vekt", expanded=False):
+
+            species_weights = species_config.get("weights_kg", {})
+
+            updated_species_weights = {}
+
+            for species_name in sorted(species_weights.keys()):
+                updated_species_weights[species_name] = st.number_input(
+                    f"{species_name} snittvekt (kg)",
+                    min_value=0.0,
+                    value=float(species_weights.get(species_name, 0.0)),
+                    step=0.1,
+                    key=f"species_weight_{species_name}",
+                )
+
+            st.caption("Disse vektene brukes til estimert fangstvekt i UI.")
+
+            st.write("")
+            st.markdown("#### Legg til ny art")
+
+            new_species_name = st.text_input(
+                "Artsnavn",
+                value="",
+                key="new_species_name",
+            )
+
+            new_species_weight = st.number_input(
+                "Snittvekt ny art (kg)",
+                min_value=0.0,
+                value=0.0,
+                step=0.1,
+                key="new_species_weight",
+            )
+
+            if st.button("Legg til art", use_container_width=True):
+                clean_name = new_species_name.strip()
+
+                if not clean_name:
+                    st.error("Artsnavn kan ikke være tomt.")
+                elif clean_name in updated_species_weights:
+                    st.error("Arten finnes allerede.")
+                else:
+                    config["species"]["weights_kg"][clean_name] = float(new_species_weight)
+                    settings_service.update(config)
+                    st.toast("Art lagt til!", icon="✅")
+                    time.sleep(0.8)
+                    st.rerun()
+
+        with st.expander("Gjennomgang / Active Learning", expanded=False):
+
+            review_min_confidence = st.slider(
+                "Nedre grense for review",
+                min_value=0.0,
+                max_value=1.0,
+                value=float(active_learning_config.get("review_min_confidence", 0.30)),
+                step=0.01,
+                help="Under denne verdien ignoreres det som støy/rot.",
+            )
+
+            review_max_confidence = st.slider(
+                "Øvre grense for review",
+                min_value=0.0,
+                max_value=1.0,
+                value=float(active_learning_config.get("review_max_confidence", 0.80)),
+                step=0.01,
+                help="Mellom nedre og øvre grense sendes telt fisk til review.",
+            )
+
+            if review_min_confidence > review_max_confidence:
+                st.error("Nedre grense kan ikke være høyere enn øvre grense.")
+  
 
     st.write("")
     btn_col1, btn_col2, _ = st.columns([1, 1, 3])
@@ -260,9 +298,7 @@ def render_settings_page() -> None:
                     "fps": fps,
                 },
                 "species": {
-                    "torsk_weight": torsk,
-                    "sei_weight": sei,
-                    "bifangst_weight": bifangst,
+                    "weights_kg": updated_species_weights,
                 },
                 "active_learning": {
                     "review_min_confidence": review_min_confidence,
@@ -278,11 +314,13 @@ def render_settings_page() -> None:
             }
 
             settings_service.update(new_config)
-            st.success("Innstillinger lagret")
+            st.toast("Endringer lagret!", icon="✅")
+            time.sleep(0.8)
             st.rerun()
 
     with btn_col2:
         if st.button("Tilbakestill", use_container_width=True):
             settings_service.reset()
-            st.success("Tilbakestilt")
+            st.toast("Tilbakestilt!", icon="✅")
+            time.sleep(0.8)
             st.rerun()

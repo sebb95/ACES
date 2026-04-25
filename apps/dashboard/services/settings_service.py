@@ -21,9 +21,18 @@ class SettingsService:
             "fps": 30,
         },
         "species": {
-            "torsk_weight": 2.4,
-            "sei_weight": 2.0,
-            "bifangst_weight": 2.2,
+            "weights_kg": {
+                "Torsk": 2.4,
+                "Sei": 2.0,
+                "Hyse": 1.2,
+                "Lange": 3.0,
+                "Brosme": 2.5,
+                "Kveite": 5.0,
+                "Flyndre": 1.0,
+                "Uer": 0.8,
+                "Lyr": 1.5,
+                "Breiflabb": 4.0,
+            }
         },
         "active_learning": {
             "review_min_confidence": 0.30,
@@ -80,6 +89,14 @@ class SettingsService:
                     base[k] = v
 
         deep_update(merged, config)
+
+        species = merged.get("species", {})
+
+        if "weights_kg" not in species:
+            merged["species"] = copy.deepcopy(self.DEFAULT_CONFIG["species"])
+
+            merged["species"]["weights_kg"]["Torsk"] = species.get("torsk_weight", 2.4)
+            merged["species"]["weights_kg"]["Sei"] = species.get("sei_weight", 2.0)
         return merged
 
     def get(self) -> Dict[str, Any]:

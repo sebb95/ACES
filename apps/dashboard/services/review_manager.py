@@ -157,27 +157,53 @@ class ReviewManager:
 
         return item
 
-    def action_change_species(self, filename: str, new_class_id: int) -> dict:
+    def action_change_species(
+        self,
+        filename: str,
+        new_species_name: str,
+        new_class_id: int | None,
+    ) -> dict:
         """
         Correct species label, then save as reviewed training data.
+
+        If the species already exists in the current model class map,
+        the YOLO label file is updated immediately.
+
+        If the species is new and has no class_id yet, metadata is marked
+        for later class_id assignment during training preparation.
         """
         paths = self._paths_for(filename)
         item = self._read_item(paths["img"]) if paths["img"].exists() else {}
 
         old_class_id = item.get("class_id")
-
-        self._update_label_class(paths["txt"], new_class_id)
-
         metadata = item.get("metadata", {})
-        if metadata:
+
+        if new_class_id is not None:
+            self._update_label_class(paths["txt"], new_class_id)
+
             metadata["old_class_id"] = old_class_id
             metadata["class_id"] = new_class_id
-            metadata["review_status"] = "corrected"
-            metadata["reviewed_at"] = datetime.now().isoformat(timespec="seconds")
-            self._write_metadata(paths["json"], metadata)
+            metadata["corrected_species_name"] = new_species_name
+            metadata["needs_class_id_assignment"] = False
+
+        else:
+            metadata["old_class_id"] = old_class_id
+            metadata["class_id"] = None
+            metadata["corrected_species_name"] = new_species_name
+            metadata["needs_class_id_assignment"] = True
+
+        metadata["review_status"] = "corrected"
+        metadata["reviewed_at"] = datetime.now().isoformat(timespec="seconds")
+
+        self._write_metadata(paths["json"], metadata)
 
         self._safe_move(paths["img"], self.training_images / paths["img"].name)
-        self._safe_move(paths["txt"], self.training_labels / paths["txt"].name)
+
+        if new_class_id is not None:
+            self._safe_move(paths["txt"], self.training_labels / paths["txt"].name)
+        else:
+            self._safe_move(paths["txt"], self.training_metadata / paths["txt"].name)
+
         self._safe_move(paths["json"], self.training_metadata / paths["json"].name)
 
         return item

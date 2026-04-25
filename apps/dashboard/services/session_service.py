@@ -3,11 +3,13 @@ from pathlib import Path
 
 from apps.dashboard import state
 from services.session_manager import SessionManager
+from services.trip_service import TripService
 
 
 class SessionService:
     def __init__(self) -> None:
         self.manager = SessionManager()
+        self.trip_service = TripService()
 
     def ensure_session_exists(self) -> None:
         if not state.has_active_session():
@@ -16,9 +18,12 @@ class SessionService:
     def start_session(self) -> None:
         now = datetime.now()
         session_id = self._generate_session_id(now)
+        trip = self.trip_service.ensure_active_trip()
 
         session_data = {
             "session_id": session_id,
+            "trip_id": trip["trip_id"],
+            "trip_name": trip["trip_name"],
             "started_at": now.isoformat(timespec="seconds"),
             "ended_at": None,
             "duration_seconds": None,
@@ -98,7 +103,7 @@ class SessionService:
 
         existing_numbers = []
 
-        for file in sessions_dir.glob(f"okt_*_{today_str}.json"):
+        for file in sessions_dir.glob(f"Økt_*_{today_str}.json"):
             parts = file.stem.split("_")
             if len(parts) != 3:
                 continue
@@ -110,4 +115,14 @@ class SessionService:
                 continue
 
         next_number = max(existing_numbers, default=0) + 1
-        return f"okt_{next_number:03d}_{today_str}"
+
+        while True:
+            session_id = f"Økt_{next_number:03d}_{today_str}"
+            file_path = sessions_dir / f"{session_id}.json"
+
+            if not file_path.exists():
+                return session_id
+
+            next_number += 1
+        
+            return f"Økt_{next_number:03d}_{today_str}"

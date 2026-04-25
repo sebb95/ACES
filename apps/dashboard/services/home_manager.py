@@ -3,6 +3,7 @@ from pathlib import Path
 from src.common.species import CLASS_NAMES
 from services.settings_service import SettingsService
 from src.vision.active_learning_logic import trigger_hard_example_save
+from services.weight_manager import WeightManager
 
 
 class HomeManager:
@@ -88,7 +89,7 @@ class HomeManager:
             )
 
     def start(self):
-        self.session_service.ensure_session_exists()
+        self.session_service.start_session()
         self._configure_tracker()
 
         self.tracker.reset()
@@ -174,34 +175,39 @@ class HomeManager:
             return 0
         return session.get("total_count", 0)
 
-    def get_species_summary(self) -> list[dict]:
+    def get_weight_summary(self) -> dict:
         session = self.session_service.get_active_session()
         if not session:
-            return []
+            return {
+                "total_count": 0,
+                "total_weight_kg": 0.0,
+                "torsk": {
+                    "name": "Torsk",
+                    "count": 0,
+                    "average_weight_kg": 0.0,
+                    "weight_kg": 0.0,
+                },
+                "sei": {
+                    "name": "Sei",
+                    "count": 0,
+                    "average_weight_kg": 0.0,
+                    "weight_kg": 0.0,
+                },
+                "bifangst": {
+                    "name": "Bifangst",
+                    "count": 0,
+                    "weight_kg": 0.0,
+                    "species": [],
+                },
+                "species_breakdown": [],
+            }
 
         settings = self._get_settings()
         species_counts = session.get("species_counts", {})
-        species_weights = settings.get("species", {})
+        species_weights = settings.get("species", {}).get("weights_kg", {})
 
-        weight_map = {
-            "Torsk": species_weights.get("torsk_weight", 0),
-            "Sei": species_weights.get("sei_weight", 0),
-            "Bifangst": species_weights.get("bifangst_weight", 0),
-        }
-
-        summary = []
-
-        for name, count in species_counts.items():
-            avg_weight = weight_map.get(name, 0)
-            summary.append(
-                {
-                    "name": name,
-                    "count": count,
-                    "weight_kg": round(count * avg_weight, 2),
-                }
-            )
-
-        return summary
+        weight_manager = WeightManager(species_weights)
+        return weight_manager.calculate(species_counts)
 
     def get_status(self) -> dict:
         model_path = self._resolve_model_path()
