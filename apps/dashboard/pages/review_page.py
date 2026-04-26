@@ -3,25 +3,6 @@ import streamlit as st
 from services.review_service import ReviewService
 
 
-def _render_trip_info(trip_name: str, catch_id: str) -> None:
-    st.markdown(
-        f"""
-        <div style="
-            background:#d3d3d3;
-            padding:1rem;
-            margin-bottom:0.8rem;
-            font-size:1.1rem;
-            font-weight:700;
-            line-height:1.8;
-        ">
-            <div>TUR: "{trip_name}"</div>
-            <div>FANGSTØKT: "{catch_id}"</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
 def _render_queue_header() -> None:
     st.markdown(
         """
@@ -228,7 +209,7 @@ def _render_action_panel(
         st.rerun()
 
     if change_species_clicked and selected_item is not None:
-        review_service.change_species(filename, class_id, new_species)
+        review_service.change_species(filename, new_species)
         st.success("Art oppdatert.")
         st.rerun()
 
@@ -253,8 +234,6 @@ def render_review_page() -> None:
     selected_index = st.session_state["selected_review_index"]
     data = review_service.get_review_page_data(selected_index=selected_index)
 
-    trip_name = data["trip_name"]
-    catch_id = data["catch_id"]
     queue = data["queue"]
     selected_item = data["selected_item"]
     species_options = data["species_options"]
@@ -266,7 +245,6 @@ def render_review_page() -> None:
     left_col, right_col = st.columns([1, 2.2], gap="small")
 
     with left_col:
-        _render_trip_info(trip_name=trip_name, catch_id=catch_id)
         _render_queue_header()
         _render_queue_list(queue)
 

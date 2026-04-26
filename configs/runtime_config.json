@@ -9,9 +9,19 @@
         "fps": 30
     },
     "species": {
-        "torsk_weight": 2.4,
-        "sei_weight": 2.0,
-        "bifangst_weight": 2.2
+        "weights_kg": {
+            "Torsk": 2.4,
+            "Sei": 2.0,
+            "Hyse": 1.2,
+            "Lange": 3.0,
+            "Brosme": 2.5,
+            "Kveite": 5.0,
+            "Flyndre": 1.0,
+            "Uer": 0.8,
+            "Lyr": 1.5,
+            "Breiflabb": 4.0,
+            "barracuda": 5.0
+        }
     },
     "active_learning": {
         "uncertainty_threshold": 0.6

@@ -2,6 +2,8 @@ from pathlib import Path
 
 from src.common.species import CLASS_NAMES
 from services.settings_service import SettingsService
+from src.vision.active_learning_logic import trigger_hard_example_save
+from services.weight_manager import WeightManager
 
 
 class HomeManager:
@@ -27,6 +29,28 @@ class HomeManager:
     def _resolve_dataset_path(self) -> Path:
         settings = self._get_settings()
         return Path(settings["input"]["dataset_path"])
+
+    def _get_review_thresholds(self) -> tuple[float, float]:
+        """
+        Confidence range for active learning.
+
+        Below min_confidence:
+            ignore as too uncertain / garbage / noise
+
+        Between min_confidence and max_confidence:
+            counted fish goes to review
+
+        Above max_confidence:
+            trusted prediction, no review
+        """
+        settings = self._get_settings()
+
+        active_learning = settings.get("active_learning", {})
+
+        min_confidence = active_learning.get("review_min_confidence", 0.30)
+        max_confidence = active_learning.get("review_max_confidence", 0.80)
+
+        return float(min_confidence), float(max_confidence)
 
     def _collect_image_paths(self) -> list[Path]:
         dataset_path = self._resolve_dataset_path()
@@ -65,7 +89,7 @@ class HomeManager:
             )
 
     def start(self):
-        self.session_service.ensure_session_exists()
+        self.session_service.start_session()
         self._configure_tracker()
 
         self.tracker.reset()
@@ -91,6 +115,7 @@ class HomeManager:
 
         result = self.tracker.update(str(image_path))
         tracked_objects = result.get("tracked_objects", [])
+        original_frame = result.get("original_frame")
 
         self.counter.update(
             tracked_objects=tracked_objects,
@@ -101,13 +126,39 @@ class HomeManager:
         newly_counted_ids = counted_after - counted_before
 
         if newly_counted_ids:
+            review_min_confidence, review_max_confidence = self._get_review_thresholds()
+
+            session = self.session_service.get_active_session()
+            session_id = session.get("session_id") if session else None
+
             for obj in tracked_objects:
                 track_id = obj.get("track_id")
 
-                if track_id in newly_counted_ids:
-                    class_id = obj.get("class_id")
-                    species_name = CLASS_NAMES.get(class_id, f"Ukjent ({class_id})")
-                    self.session_service.increment_species_count(species_name)
+                if track_id not in newly_counted_ids:
+                    continue
+
+                class_id = obj.get("class_id")
+                species_name = CLASS_NAMES.get(class_id, f"Ukjent ({class_id})")
+
+                self.session_service.increment_species_count(species_name)
+
+                confidence = obj.get("confidence", 0.0)
+                mask_coords = obj.get("mask_coords", [])
+
+                saved_to_review = trigger_hard_example_save(
+                    frame=original_frame,
+                    mask_coords=mask_coords,
+                    conf=confidence,
+                    cls_id=class_id,
+                    track_id=track_id,
+                    min_confidence=review_min_confidence,
+                    max_confidence=review_max_confidence,
+                    session_id=session_id,
+                    image_path=str(image_path),
+                )
+
+                if saved_to_review:
+                    self.session_service.increment_uncertain_count()
 
         self.frame_index += 1
 
@@ -124,34 +175,39 @@ class HomeManager:
             return 0
         return session.get("total_count", 0)
 
-    def get_species_summary(self) -> list[dict]:
+    def get_weight_summary(self) -> dict:
         session = self.session_service.get_active_session()
         if not session:
-            return []
+            return {
+                "total_count": 0,
+                "total_weight_kg": 0.0,
+                "torsk": {
+                    "name": "Torsk",
+                    "count": 0,
+                    "average_weight_kg": 0.0,
+                    "weight_kg": 0.0,
+                },
+                "sei": {
+                    "name": "Sei",
+                    "count": 0,
+                    "average_weight_kg": 0.0,
+                    "weight_kg": 0.0,
+                },
+                "bifangst": {
+                    "name": "Bifangst",
+                    "count": 0,
+                    "weight_kg": 0.0,
+                    "species": [],
+                },
+                "species_breakdown": [],
+            }
 
         settings = self._get_settings()
         species_counts = session.get("species_counts", {})
-        species_weights = settings.get("species", {})
+        species_weights = settings.get("species", {}).get("weights_kg", {})
 
-        weight_map = {
-            "Torsk": species_weights.get("torsk_weight", 0),
-            "Sei": species_weights.get("sei_weight", 0),
-            "Bifangst": species_weights.get("bifangst_weight", 0),
-        }
-
-        summary = []
-
-        for name, count in species_counts.items():
-            avg_weight = weight_map.get(name, 0)
-            summary.append(
-                {
-                    "name": name,
-                    "count": count,
-                    "weight_kg": round(count * avg_weight, 2),
-                }
-            )
-
-        return summary
+        weight_manager = WeightManager(species_weights)
+        return weight_manager.calculate(species_counts)
 
     def get_status(self) -> dict:
         model_path = self._resolve_model_path()

@@ -1,15 +1,15 @@
-#session logic
-
 from datetime import datetime
 from pathlib import Path
 
 from apps.dashboard import state
 from services.session_manager import SessionManager
+from services.trip_service import TripService
 
 
 class SessionService:
     def __init__(self) -> None:
         self.manager = SessionManager()
+        self.trip_service = TripService()
 
     def ensure_session_exists(self) -> None:
         if not state.has_active_session():
@@ -18,13 +18,19 @@ class SessionService:
     def start_session(self) -> None:
         now = datetime.now()
         session_id = self._generate_session_id(now)
+        trip = self.trip_service.ensure_active_trip()
 
         session_data = {
             "session_id": session_id,
+            "trip_id": trip["trip_id"],
+            "trip_name": trip["trip_name"],
             "started_at": now.isoformat(timespec="seconds"),
             "ended_at": None,
+            "duration_seconds": None,
             "species_counts": {},
             "total_count": 0,
+            "uncertain_count": 0,
+            "review_items_created": 0,
             "corrections": 0,
             "status": "running",
         }
@@ -39,22 +45,33 @@ class SessionService:
         if not session:
             return
 
-        counts = session["species_counts"]
+        counts = session.setdefault("species_counts", {})
+        counts[species_name] = counts.get(species_name, 0) + amount
 
-        if species_name not in counts:
-            counts[species_name] = 0
-
-        counts[species_name] += amount
-        session["total_count"] += amount
+        session["total_count"] = sum(counts.values())
 
         state.set_active_session(session)
 
-    def increment_corrections(self, amount: int = 1) -> None:
+    def increment_uncertain_count(self, amount: int = 1) -> None:
         session = self.get_active_session()
         if not session:
             return
 
-        session["corrections"] += amount
+        session["uncertain_count"] = session.get("uncertain_count", 0) + amount
+        session["review_items_created"] = session.get("review_items_created", 0) + amount
+
+        state.set_active_session(session)
+
+    def increment_corrections(self, amount: int = 1) -> None:
+        """
+        Kept for compatibility, but live review corrections should no longer
+        change session counts in the new strategy.
+        """
+        session = self.get_active_session()
+        if not session:
+            return
+
+        session["corrections"] = session.get("corrections", 0) + amount
         state.set_active_session(session)
 
     def stop_session(self) -> dict | None:
@@ -68,7 +85,11 @@ class SessionService:
         session["ended_at"] = ended_at.isoformat(timespec="seconds")
         session["duration_seconds"] = int((ended_at - started_at).total_seconds())
         session["status"] = "completed"
-        session["total_count"] = sum(session["species_counts"].values())
+        session["total_count"] = sum(session.get("species_counts", {}).values())
+
+        session.setdefault("uncertain_count", 0)
+        session.setdefault("review_items_created", 0)
+        session.setdefault("corrections", 0)
 
         self.manager.save_session(session)
         state.clear_active_session()
@@ -82,7 +103,7 @@ class SessionService:
 
         existing_numbers = []
 
-        for file in sessions_dir.glob(f"okt_*_{today_str}.json"):
+        for file in sessions_dir.glob(f"Økt_*_{today_str}.json"):
             parts = file.stem.split("_")
             if len(parts) != 3:
                 continue
@@ -94,40 +115,14 @@ class SessionService:
                 continue
 
         next_number = max(existing_numbers, default=0) + 1
-        return f"okt_{next_number:03d}_{today_str}"
-    
-    def decrement_species_count(self, species_name: str, amount: int = 1) -> None:
-        session = self.get_active_session()
-        if not session:
-            return
 
-        counts = session["species_counts"]
+        while True:
+            session_id = f"Økt_{next_number:03d}_{today_str}"
+            file_path = sessions_dir / f"{session_id}.json"
 
-        if species_name not in counts:
-            counts[species_name] = 0
+            if not file_path.exists():
+                return session_id
 
-        counts[species_name] = max(0, counts[species_name] - amount)
-        session["total_count"] = max(0, session["total_count"] - amount)
-
-        state.set_active_session(session)    
-
-
-    def reassign_species_count(self, old_species: str, new_species: str) -> None:
-        session = self.get_active_session()
-        if not session:
-            return
-
-        counts = session["species_counts"]
-
-        if old_species not in counts:
-            counts[old_species] = 0
-        if new_species not in counts:
-            counts[new_species] = 0
-
-        if counts[old_species] > 0:
-            counts[old_species] -= 1
-
-        counts[new_species] += 1
-        session["total_count"] = sum(counts.values())
-
-        state.set_active_session(session)
+            next_number += 1
+        
+            return f"Økt_{next_number:03d}_{today_str}"

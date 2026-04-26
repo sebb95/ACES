@@ -2,40 +2,106 @@ import streamlit as st
 
 from services.home_service import HomeService
 
+def _render_trip_controls(service, trip: dict) -> None:
+    st.markdown("### TUR")
+
+    trip_name = trip.get("trip_name", "Ingen tur")
+
+    if "editing_trip_name" not in st.session_state:
+        st.session_state["editing_trip_name"] = False
+
+    if st.session_state["editing_trip_name"]:
+        new_name = st.text_input(
+            "Tur navn",
+            value=trip_name,
+            label_visibility="collapsed",
+            key="trip_name_edit_input",
+        )
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            if st.button("Lagre navn", use_container_width=True):
+                service.rename_trip(new_name)
+                st.session_state["editing_trip_name"] = False
+                st.success("Navn oppdatert")
+                st.rerun()
+
+        with col2:
+            if st.button("Avbryt", use_container_width=True):
+                st.session_state["editing_trip_name"] = False
+                st.rerun()
+
+    else:
+        st.markdown(
+            f"""
+            <div style="
+                background:#d3d3d3;
+                padding:0.9rem 1rem;
+                margin-bottom:0.6rem;
+                font-size:1.1rem;
+                font-weight:800;
+            ">
+                {trip_name}
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        if st.button("Endre navn", use_container_width=True):
+            st.session_state["editing_trip_name"] = True
+            st.rerun()
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        if st.button("Ny tur", use_container_width=True):
+            service.start_new_trip()
+            st.success("Ny tur startet")
+            st.rerun()
+
+    with col2:
+        if st.button("Avslutt tur", use_container_width=True):
+            service.end_trip()
+            st.warning("Tur avsluttet")
+            st.rerun()
+
+    st.write("")
 
 def _render_left_panel(
-    trip_name: str,
     catch_id: str,
     session_running: bool,
 ) -> tuple[bool, bool]:
-    st.markdown("### TUR")
-    st.text_input(
-        label="Tur",
-        value=trip_name,
-        label_visibility="collapsed",
-        key="trip_name",
-    )
-
     st.markdown("### FANGSTØKT")
-    st.text_input(
-        label="Fangstøkt",
-        value=catch_id,
-        label_visibility="collapsed",
-        key="catch_id",
-    )
+
+    st.markdown(
+    f"""
+    <div style="
+        background:#d3d3d3;
+        padding:0.9rem 1rem;
+        margin-bottom:0.6rem;
+        font-size:1.1rem;
+        font-weight:800;
+    ">
+        {catch_id}
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
     st.write("")
 
     start_clicked = st.button(
-        "START",
-        use_container_width=True,
-        type="primary",
-        disabled=session_running,
-    )
+    "START",
+    use_container_width=True,
+    type="primary" if not session_running else "secondary",
+    disabled=session_running,
+)
 
     stop_clicked = st.button(
         "STOP",
         use_container_width=True,
+        type="primary" if session_running else "secondary",
         disabled=not session_running,
     )
 
@@ -79,12 +145,19 @@ def _render_main_metrics(total_count: int, estimated_weight_kg: int) -> None:
     )
 
 
-def _render_species_rows(species: list[dict]) -> None:
-    for item in species:
-        name = item["name"]
-        count = item["count"]
-        weight_kg = item["weight_kg"]
+def _render_species_rows(
+    torsk: dict,
+    sei: dict,
+    bifangst: dict,
+    uncertain_count: int,
+) -> None:
+    rows = [
+        ("Torsk", torsk["count"], torsk["weight_kg"]),
+        ("Sei", sei["count"], sei["weight_kg"]),
+        ("Bifangst", bifangst["count"], bifangst["weight_kg"]),
+    ]
 
+    for name, count, weight_kg in rows:
         st.markdown(
             f"""
             <div style="
@@ -101,6 +174,34 @@ def _render_species_rows(species: list[dict]) -> None:
             unsafe_allow_html=True,
         )
 
+    with st.expander("Vis bifangst fordelt på art"):
+        bifangst_species = bifangst.get("species", [])
+
+        if not bifangst_species:
+            st.write("Ingen bifangst registrert.")
+        else:
+            for item in bifangst_species:
+                st.write(
+                    f"{item['name']}: {item['count']} stk "
+                    f"({item['weight_kg']} kg)"
+                )
+
+    st.markdown(
+        f"""
+        <div style="
+            background:#d3d3d3;
+            padding:0.8rem 1.5rem;
+            margin-top:0.5rem;
+            text-align:center;
+            font-size:1.4rem;
+            font-weight:700;
+        ">
+            Usikre til gjennomgang: {uncertain_count}
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
 
 def render_home_page() -> None:
     service = HomeService()
@@ -109,14 +210,16 @@ def render_home_page() -> None:
         service.step()
 
     data = service.get_home_page_data()
+    trip = data["trip"]
 
     st.session_state["review_pending"] = data["status"]["review_pending"]
 
     left_col, right_col = st.columns([1, 2.15], gap="small")
 
     with left_col:
+        _render_trip_controls(service, trip)
+
         start_clicked, stop_clicked = _render_left_panel(
-            trip_name=data["trip_name"],
             catch_id=data["catch_id"],
             session_running=data["session_running"],
         )
@@ -136,4 +239,10 @@ def render_home_page() -> None:
             total_count=data["total_count"],
             estimated_weight_kg=data["estimated_weight_kg"],
         )
-        _render_species_rows(data["species"])
+
+        _render_species_rows(
+            torsk=data["torsk"],
+            sei=data["sei"],
+            bifangst=data["bifangst"],
+            uncertain_count=data["status"]["uncertain_count"],
+        )
