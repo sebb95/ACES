@@ -59,8 +59,7 @@ data/*
 # Keep empty structure where needed
 !data/input/
 !data/input/.gitkeep
-!data/history
-!data/history/.gitkeep
+
 
 # ----------------------------
 # Training / experiment outputs
