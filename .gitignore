@@ -53,6 +53,11 @@ data/processed/
 data/labels/
 data/frames/
 
+#input files contents
+data/input/*
+!data/input/.gitkeep
+!data/input/*/
+
 # Sample dataset used for testing is allowed
 # data/sample/ is intentionally tracked
 

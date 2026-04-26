@@ -28,14 +28,14 @@ class HomeService:
 
             counter = LineCounter(
                 CountConfig(
-                    line_position=300,
-                    axis="y",
-                    line_margin=20.0,
-                    min_positions=2,
-                    max_missing_frames=30,
-                    direction="any",
+                        line_position=1000.0,
+                        axis="x",
+                        line_margin=200.0,
+                        min_positions=2,
+                        max_missing_frames=30,
+                        direction="any",
+                    )
                 )
-            )
 
             session_service = SessionService()
 
@@ -51,11 +51,13 @@ class HomeService:
         session = self.manager.session_service.get_active_session()
         weight_summary = self.manager.get_weight_summary()
         trip = self.get_active_trip()
+        active_session = self.manager.session_service.get_active_session()
 
         return {
             "trip": trip,
             "trip_name": st.session_state.get("trip_name", "Tur_2026_03_14"),
             "catch_id": session.get("session_id", "Ingen aktiv økt") if session else "Ingen aktiv økt (trykk START)",
+            "session_active": active_session is not None,
             "session_running": self.manager.is_running,
 
             "total_count": weight_summary["total_count"],
