@@ -1,4 +1,5 @@
 from pathlib import Path
+import cv2
 
 from src.common.species import CLASS_NAMES
 from services.settings_service import SettingsService
@@ -17,9 +18,31 @@ class HomeManager:
         self.image_iterator = None
         self.is_running = False
         self.frame_index = 0
+        self.input_mode = "images"
+        self.video_capture = None
+        self.frame_skip = 5 #UPDATE FOR NR BILDER per SEC! 30FPS/frame_skip=ønsket antall
+        self.processing_finished = False
 
     def _get_settings(self) -> dict:
         return self.settings_service.get()
+    
+    def _get_input_mode(self) -> str:
+        settings = self._get_settings()
+        input_settings = settings.get("input", {})
+
+        input_type = input_settings.get("input_type", "image_folder")
+
+        if input_type == "video_file":
+            return "video"
+
+        if input_type == "image_folder":
+            return "images"
+
+        return "images"
+    
+    def _resolve_video_path(self) -> Path:
+        settings = self._get_settings()
+        return Path(settings["input"]["video_path"])
 
     def _resolve_model_path(self) -> Path:
         settings = self._get_settings()
@@ -94,28 +117,90 @@ class HomeManager:
 
         self.tracker.reset()
         self.counter.reset()
+        
+        settings = self._get_settings()
+        input_mode = self._get_input_mode()
+        self.input_mode = input_mode
 
-        self.image_paths = self._collect_image_paths()
-        self.image_iterator = iter(self.image_paths)
+        if input_mode == "video":
+            video_path = self._resolve_video_path()
+
+            if not video_path.exists():
+                raise FileNotFoundError(f"Video not found: {video_path}")
+
+            self.video_capture = cv2.VideoCapture(str(video_path))
+
+            if not self.video_capture.isOpened():
+                raise RuntimeError(f"Could not open video: {video_path}")
+
+            self.image_paths = []
+            self.image_iterator = None
+
+            print(f"[START] Video opened: {video_path}")
+
+        else:
+            self.image_paths = self._collect_image_paths()
+            self.image_iterator = iter(self.image_paths)
+
+            print(f"[START] Image folder loaded: {len(self.image_paths)} images")
 
         self.frame_index = 0
+        self.processing_finished = False
         self.is_running = True
 
+        #debug status prints
+        print(f"[START] mode={input_mode}")
+        print(f"[START] total frames loaded: {len(self.image_paths)}")
+
     def step(self):
+        print(f"[STEP] frame_index={self.frame_index}") #debug status print
         if not self.is_running:
             return
 
-        try:
-            image_path = next(self.image_iterator)
-        except StopIteration:
-            self.stop()
-            return
+        if self.input_mode == "video":
+            frame = None
+            success = False
+
+            for _ in range(self.frame_skip):
+                success, frame = self.video_capture.read()
+                if not success:
+                    break
+
+            if not success:
+                print("[VIDEO] No more frames → processing finished")
+
+                if self.video_capture is not None:
+                    self.video_capture.release()
+                    self.video_capture = None
+
+                self.is_running = False
+                self.processing_finished = True
+                return
+
+            image_path = f"video_frame_{self.frame_index:06d}"
+
+            result = self.tracker.update_frame(
+                frame=frame,
+                frame_name=image_path,
+            )
+
+        else:
+            try:
+                image_path = next(self.image_iterator)
+            except StopIteration:
+                print("[IMAGES] No more images → processing finished")
+                self.is_running = False
+                self.processing_finished = True
+                return
+
+            result = self.tracker.update(str(image_path))
 
         counted_before = set(self.counter.get_counted_track_ids())
 
-        result = self.tracker.update(str(image_path))
+        
         tracked_objects = result.get("tracked_objects", [])
         original_frame = result.get("original_frame")
+        print(f"[TRACK] objects={len(tracked_objects)}") #debug status print
 
         self.counter.update(
             tracked_objects=tracked_objects,
@@ -124,6 +209,10 @@ class HomeManager:
 
         counted_after = set(self.counter.get_counted_track_ids())
         newly_counted_ids = counted_after - counted_before
+
+        new_count = len(newly_counted_ids) #debug status print
+        if new_count > 0:     
+            print(f"[COUNT] +{new_count} fish")
 
         if newly_counted_ids:
             review_min_confidence, review_max_confidence = self._get_review_thresholds()
@@ -150,11 +239,6 @@ class HomeManager:
                     mask_coords=mask_coords,
                     conf=confidence,
                     cls_id=class_id,
-                    track_id=track_id,
-                    min_confidence=review_min_confidence,
-                    max_confidence=review_max_confidence,
-                    session_id=session_id,
-                    image_path=str(image_path),
                 )
 
                 if saved_to_review:
@@ -163,11 +247,23 @@ class HomeManager:
         self.frame_index += 1
 
     def stop(self):
-        if not self.is_running:
+        if self.video_capture is not None:
+            self.video_capture.release()
+            self.video_capture = None
+
+        session = self.session_service.get_active_session()
+
+        if not session:
+            self.is_running = False
+            self.processing_finished = False
+            print("[STOP] no active session to save")
             return
 
         self.is_running = False
+        self.processing_finished = False
+
         self.session_service.stop_session()
+        print("[STOP] session finished and saved")
 
     def get_total_count(self) -> int:
         session = self.session_service.get_active_session()

@@ -1,4 +1,5 @@
 import streamlit as st
+import time
 
 from services.home_service import HomeService
 
@@ -71,6 +72,7 @@ def _render_trip_controls(service, trip: dict) -> None:
 def _render_left_panel(
     catch_id: str,
     session_running: bool,
+    session_active: bool,
 ) -> tuple[bool, bool]:
     st.markdown("### FANGSTØKT")
 
@@ -101,8 +103,8 @@ def _render_left_panel(
     stop_clicked = st.button(
         "STOP",
         use_container_width=True,
-        type="primary" if session_running else "secondary",
-        disabled=not session_running,
+        type="primary" if session_active else "secondary",
+        disabled=not session_active,
     )
 
     st.write("")
@@ -204,10 +206,61 @@ def _render_species_rows(
 
 
 def render_home_page() -> None:
-    service = HomeService()
+    try:
+        service = HomeService()
 
-    if service.is_running():
-        service.step()
+    except (FileNotFoundError, ValueError) as e:
+        error_msg = str(e).lower()
+
+        if "weights" in error_msg or "model" in error_msg:
+            st.error("❌ Modellfil ikke funnet")
+
+            st.markdown(
+                """
+                Systemet finner ikke valgt modellfil.
+
+                👉 Gå til **Innstillinger → Modell** og velg en gyldig `.pt`-fil.
+
+                Sjekk også at:
+                - Filen finnes i `outputs/weights`
+                - Riktig modell er valgt i konfigurasjonen
+                """
+            )
+
+        elif "dataset" in error_msg or "image files" in error_msg:
+            st.error("❌ Dataset ikke funnet eller tom")
+
+            st.markdown(
+                """
+                Systemet finner ikke gyldig input-data.
+
+                👉 Gå til **Innstillinger → Kamera/Input** og velg riktig mappe.
+
+                Sjekk at:
+                - Dataset path peker til en eksisterende mappe
+                - Mappen inneholder bilder (`.jpg`, `.png`, osv.)
+                """
+            )
+
+        else:
+            st.error("❌ Ukjent feil ved oppstart")
+            st.markdown(
+                """
+                Noe gikk galt under oppstart av systemet.
+
+                👉 Sjekk innstillinger eller kontakt utvikler.
+                """
+            )
+
+        st.code(str(e))
+
+        st.write("")
+
+        if st.button("Gå til Innstillinger", use_container_width=True):
+            st.session_state["current_page"] = "settings"
+            st.rerun()
+
+        return
 
     data = service.get_home_page_data()
     trip = data["trip"]
@@ -222,6 +275,7 @@ def render_home_page() -> None:
         start_clicked, stop_clicked = _render_left_panel(
             catch_id=data["catch_id"],
             session_running=data["session_running"],
+            session_active=data["session_active"],
         )
 
     if start_clicked:
@@ -246,3 +300,8 @@ def render_home_page() -> None:
             bifangst=data["bifangst"],
             uncertain_count=data["status"]["uncertain_count"],
         )
+
+    if service.is_running():
+        service.step()
+        time.sleep(0.1)
+        st.rerun()
