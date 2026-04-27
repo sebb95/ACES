@@ -19,7 +19,7 @@ from pages.home_page import render_home_page
 from pages.review_page import render_review_page
 from pages.settings_page import render_settings_page
 from pathlib import Path
-
+from services.training_service import TrainingService
 
 
 st.set_page_config(
@@ -27,6 +27,10 @@ st.set_page_config(
     page_icon="🎣",
     layout="wide",
 )
+
+training_service = TrainingService()
+training_service.recover_if_stuck()
+TrainingService().maybe_run_scheduled_training()
 
 st.markdown(
     """
@@ -59,15 +63,16 @@ if "current_page" not in st.session_state:
 render_top_nav()
 st.write("")
 
-current_page = st.session_state["current_page"]
+page = st.container()
 
-if current_page == "home":
-    render_home_page()
-elif current_page == "review":
-    render_review_page()
-elif current_page == "history":
-    render_history_page()
-elif current_page == "settings":
-    render_settings_page()
-else:
-    st.error("Ukjent side.")
+with page:
+    current_page = st.session_state["current_page"]
+
+    if current_page == "home":
+        render_home_page()
+    elif current_page == "review":
+        render_review_page()
+    elif current_page == "history":
+        render_history_page()
+    elif current_page == "settings":
+        render_settings_page()

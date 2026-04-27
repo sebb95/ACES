@@ -2,6 +2,8 @@ import streamlit as st
 import time
 
 from services.home_service import HomeService
+from services.training_service import TrainingService
+
 
 def _render_trip_controls(service, trip: dict) -> None:
     st.markdown("### TUR")
@@ -93,12 +95,15 @@ def _render_left_panel(
 
     st.write("")
 
+    training_status = TrainingService().get_status()
+    training_running = training_status == "running"
+
     start_clicked = st.button(
-    "START",
-    use_container_width=True,
-    type="primary" if not session_running else "secondary",
-    disabled=session_running,
-)
+        "START",
+        use_container_width=True,
+        type="primary" if not session_active and not training_running else "secondary",
+        disabled=session_active or training_running,
+    )
 
     stop_clicked = st.button(
         "STOP",
@@ -106,8 +111,6 @@ def _render_left_panel(
         type="primary" if session_active else "secondary",
         disabled=not session_active,
     )
-
-    st.write("")
     st.write("")
 
     return start_clicked, stop_clicked
@@ -206,6 +209,7 @@ def _render_species_rows(
 
 
 def render_home_page() -> None:
+    st.markdown("---")
     try:
         service = HomeService()
 

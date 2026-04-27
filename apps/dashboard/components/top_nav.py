@@ -1,6 +1,7 @@
 import streamlit as st
 
 from services.review_service import ReviewService
+from services.training_service import TrainingService
 
 
 def render_top_nav() -> None:
@@ -9,6 +10,16 @@ def render_top_nav() -> None:
 
     review_service = ReviewService()
     review_pending = review_service.get_pending_count()
+
+    training_status = TrainingService().get_status()
+    if training_status == "running":
+        model_icon = "🟡"
+    elif training_status == "ready":
+        model_icon = "🟢"
+    elif training_status == "failed":
+        model_icon = "🔴"
+    else:
+        model_icon = "⚪"
 
     col1, col2, col3, col4, col5, col6, col7 = st.columns(
         [1.0, 1.0, 1.0, 1.0, 1.15, 1.0, 1.2],
@@ -40,7 +51,7 @@ def render_top_nav() -> None:
             st.session_state["current_page"] = "home"
 
     with col3:
-        st.button("Modell 🟢", use_container_width=True, disabled=True)
+        st.button(f"Modell trening {model_icon}", use_container_width=True, disabled=True)
 
     with col4:
         st.button("Kamera 🟢", use_container_width=True, disabled=True)

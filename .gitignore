@@ -45,32 +45,23 @@ env/
 # Project: data & outputs (ACES Spesifikk)
 # ----------------------------
 
-# Ignorer all tung bildedata i vår nye struktur
-data/master/
-data/inbox/
-data/archive/
-data/dynamic_val/
+# ----------------------------
+# Data (ignore all runtime data)
+# ----------------------------
 
-# Ignorer alle bilder og labels generelt uansett hvor de ligger i data-mappen
-data/**/*.jpg
-data/**/*.jpeg
-data/**/*.png
-data/**/*.txt
-
-# Real data should never be committed
-# Ignore ALL data by default
 data/*
-
-# Allow only sample dataset
 !data/sample/
 !data/sample/**
+!data/input/
+!data/input/.gitkeep
+!data/**/.gitkeep
+data/input/*.mp4
+# Allow only sample dataset
 
 # Sample dataset used for testing is allowed
 # !data/sample/
 
 # Keep empty structure where needed
-!data/input/
-!data/input/.gitkeep
 
 
 # ----------------------------
@@ -86,16 +77,13 @@ runs/
 # Outputs (keep structure only)
 # ----------------------------
 
-outputs/**
-!outputs/
+# ----------------------------
+# Outputs (keep structure only)
+# ----------------------------
+
+outputs/*
 !outputs/.gitkeep
-
-!outputs/runs/
-outputs/runs/**
-!outputs/runs/.gitkeep
-
 !outputs/weights/
-outputs/weights/**
 !outputs/weights/.gitkeep
 
 # Logs
@@ -149,18 +137,3 @@ datasets/
 # ---------------------------
 #UI metadata 
 # ---------------------------
-
-# Ignore runtime data
-data/history/sessions/*
-data/review_queue/pending/*
-data/review_queue/approved_today/*
-data/review_queue/approved_today/images/*
-data/review_queue/approved_today/labels/*
-data/sync_queue/*
-
-# Keep folder structure
-!data/history/sessions/.gitkeep
-!data/review_queue/pending/.gitkeep
-!data/review_queue/approved_today/images/.gitkeep
-!data/review_queue/approved_today/labels/.gitkeep
-!data/sync_queue/.gitkeep

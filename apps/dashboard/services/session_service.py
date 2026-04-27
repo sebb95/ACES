@@ -51,6 +51,7 @@ class SessionService:
         session["total_count"] = sum(counts.values())
 
         state.set_active_session(session)
+        self.autosave_session()
 
     def increment_uncertain_count(self, amount: int = 1) -> None:
         session = self.get_active_session()
@@ -61,6 +62,7 @@ class SessionService:
         session["review_items_created"] = session.get("review_items_created", 0) + amount
 
         state.set_active_session(session)
+        self.autosave_session()
 
     def increment_corrections(self, amount: int = 1) -> None:
         """
@@ -125,4 +127,16 @@ class SessionService:
 
             next_number += 1
         
-            return f"Økt_{next_number:03d}_{today_str}"
+        
+    
+    def autosave_session(self) -> None:
+        session = self.get_active_session()
+        if not session:
+            return
+
+        session["status"] = "running_autosaved"
+        session["last_autosaved_at"] = datetime.now().isoformat(timespec="seconds")
+        session["total_count"] = sum(session.get("species_counts", {}).values())
+
+        self.manager.save_session(session)
+        state.set_active_session(session)

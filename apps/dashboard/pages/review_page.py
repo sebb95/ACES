@@ -124,7 +124,7 @@ def _render_action_panel(
     else:
         prediction = selected_item["species_name"]
         confidence = selected_item.get("confidence")
-        confidence_text = f"{confidence}%" if confidence is not None else "Ikke tilgjengelig"
+        confidence_text = f"{confidence:.1%}" if confidence is not None else "Ikke tilgjengelig"
         filename = selected_item["filename"]
         timestamp = selected_item.get("timestamp", "--:--:--")
         default_index = species_options.index(prediction) if prediction in species_options else 0
@@ -209,9 +209,12 @@ def _render_action_panel(
         st.rerun()
 
     if change_species_clicked and selected_item is not None:
-        review_service.change_species(filename, new_species)
-        st.success("Art oppdatert.")
-        st.rerun()
+        try:
+            review_service.change_species(filename, new_species)
+            st.success("Art oppdatert.")
+            st.rerun()
+        except Exception as e:
+            st.error(f"Kunne ikke oppdatere art: {e}")
 
     if reject_clicked and selected_item is not None:
         review_service.reject(filename, class_id)
@@ -227,6 +230,7 @@ def _render_action_panel(
 
 
 def render_review_page() -> None:
+    st.markdown("---")
     if "selected_review_index" not in st.session_state:
         st.session_state["selected_review_index"] = 0
 

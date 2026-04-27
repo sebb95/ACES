@@ -1,37 +1,40 @@
 import copy
 import json
+import re
 from pathlib import Path
 from typing import Any, Dict
 
 
 class SettingsService:
     CONFIG_PATH = Path("configs/runtime_config.json")
+    SPECIES_PATH = Path("src/common/species.py")
 
     DEFAULT_CONFIG: Dict[str, Any] = {
         "model": {
             "selected_model": "best.pt",
         },
         "input": {
-            "input_type": "image_folder",
+            "input_type": "video_file",
             "dataset_path": "data/sample",
             "video_path": "data/input/video.mp4",
-            "frame_output_path": "data/processed/frames/current_run",
         },
         "camera": {
             "fps": 30,
         },
         "species": {
             "weights_kg": {
-                "Torsk": 2.4,
-                "Sei": 2.0,
-                "Hyse": 1.2,
-                "Lange": 3.0,
+                "Breiflab": 4.0,
                 "Brosme": 2.5,
-                "Kveite": 5.0,
                 "Flyndre": 1.0,
-                "Uer": 0.8,
+                "Hyse": 1.2,
+                "Kveite": 5.0,
+                "Lange": 3.0,
                 "Lyr": 1.5,
-                "Breiflabb": 4.0,
+                "Sei": 2.0,
+                "Torsk": 2.4,
+                "Uer": 0.8,
+                "Bifangst": 1.0,
+                "Ukjent": 1.0,
             }
         },
         "active_learning": {
@@ -40,8 +43,6 @@ class SettingsService:
         },
         "training": {
             "status": "idle",
-            "selected_model": "best.pt",
-            "dataset_path": "data/training_reviewed",
             "night_training_enabled": False,
             "night_training_time": "03:00",
         },
@@ -107,3 +108,37 @@ class SettingsService:
 
     def reset(self) -> None:
         self._save(copy.deepcopy(self.DEFAULT_CONFIG))
+
+    def add_species(self, species_name: str) -> int:
+        species_name = species_name.strip()
+
+        if not species_name:
+            raise ValueError("Species name cannot be empty.")
+
+        content = self.SPECIES_PATH.read_text(encoding="utf-8")
+
+        if re.search(rf':\s*"{re.escape(species_name)}"', content):
+            raise ValueError(f"Species already exists: {species_name}")
+
+        matches = re.findall(
+            r'^\s*(\d+):\s*"([^"]+)"',
+            content,
+            flags=re.MULTILINE,
+        )
+
+        if not matches:
+            raise ValueError("Could not find CLASS_NAMES entries in species.py.")
+
+        max_id = max(int(class_id) for class_id, _ in matches)
+        new_id = max_id + 1
+
+        insert_line = f'    {new_id}: "{species_name}",\n'
+
+        content = content.replace(
+            "}\n\nNAME_TO_CLASS_ID",
+            insert_line + "}\n\nNAME_TO_CLASS_ID",
+        )
+
+        self.SPECIES_PATH.write_text(content, encoding="utf-8")
+
+        return new_id
