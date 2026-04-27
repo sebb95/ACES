@@ -186,6 +186,7 @@ def _render_trip_row(trip: dict) -> None:
 
 
 def render_history_page() -> None:
+    st.markdown("---")
     _ensure_expanded_state()
 
     history_service = HistoryService()

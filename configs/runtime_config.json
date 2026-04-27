@@ -5,15 +5,14 @@
     "input": {
         "input_type": "video_file",
         "dataset_path": "",
-        "video_path": "data/input/video.mp4",
-        "frame_output_path": "data/processed/frames/current_run"
+        "video_path": "data/input/video.mp4"
     },
     "camera": {
         "fps": 30
     },
     "species": {
         "weights_kg": {
-            "Breiflabb": 4.0,
+            "Breiflab": 4.0,
             "Brosme": 2.5,
             "Flyndre": 1.0,
             "Hyse": 1.2,
@@ -23,6 +22,9 @@
             "Sei": 2.0,
             "Torsk": 2.4,
             "Uer": 0.8,
+            "Bifangst": 1.0,
+            "Ukjent": 1.0,
+            "Breiflabb": 4.0,
             "barracuda": 5.0
         }
     },
@@ -31,10 +33,11 @@
         "review_max_confidence": 0.8
     },
     "training": {
-        "status": "idle",
+        "status": "failed",
+        "night_training_enabled": false,
+        "night_training_time": "03:00",
         "selected_model": "best.pt",
         "dataset_path": "data/training_reviewed",
-        "night_training_enabled": false,
-        "night_training_time": "03:00"
+        "last_updated_at": "2026-04-28T00:13:27"
     }
 }

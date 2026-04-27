@@ -1,5 +1,4 @@
 from services.review_manager import ReviewManager
-from services.settings_service import SettingsService
 from src.common.species import CLASS_NAMES, NAME_TO_CLASS_ID
 
 
@@ -8,18 +7,12 @@ class ReviewService:
 
     def __init__(self):
         self.manager = ReviewManager()
-        self.settings_service = SettingsService()
 
     def _get_species_options(self) -> list[str]:
-        settings = self.settings_service.get()
-        species_weights = settings.get("species", {}).get("weights_kg", {})
-
-        options = sorted(species_weights.keys())
-
-        if not options:
-            options = sorted(CLASS_NAMES.values())
-
-        return options
+        return [
+            CLASS_NAMES[class_id]
+            for class_id in sorted(CLASS_NAMES)
+        ]
 
     def get_review_page_data(self, selected_index: int = 0) -> dict:
         pending_items = self.manager.list_pending_items()

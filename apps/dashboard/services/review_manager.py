@@ -69,10 +69,10 @@ class ReviewManager:
         with open(metadata_path, "w", encoding="utf-8") as f:
             json.dump(metadata, f, indent=2, ensure_ascii=False)
 
-    def _read_label(self, img: Path) -> tuple[int, list[float]]:
+    def _read_label(self, img: Path) -> tuple[int | None, list[float]]:
         txt = img.with_suffix(".txt")
 
-        class_id = 4
+        class_id = None
         polygon = []
 
         if not txt.exists():
@@ -164,13 +164,13 @@ class ReviewManager:
         new_class_id: int | None,
     ) -> dict:
         """
-        Correct species label, then save as reviewed training data.
+        Oppdaterer artslabel for et bilde og lagrer det som godkjent treningsdata.
 
-        If the species already exists in the current model class map,
-        the YOLO label file is updated immediately.
+        - Oppdaterer class_id i YOLO-label (.txt)
+        - Oppdaterer metadata med valgt art
+        - Flytter bilde, label og metadata til training_reviewed
 
-        If the species is new and has no class_id yet, metadata is marked
-        for later class_id assignment during training preparation.
+        Krever at arten finnes i species.py (må legges til via Settings først).
         """
         paths = self._paths_for(filename)
         item = self._read_item(paths["img"]) if paths["img"].exists() else {}
@@ -178,32 +178,24 @@ class ReviewManager:
         old_class_id = item.get("class_id")
         metadata = item.get("metadata", {})
 
-        if new_class_id is not None:
-            self._update_label_class(paths["txt"], new_class_id)
+        if new_class_id is None:
+            raise ValueError(
+                f"Unknown species '{new_species_name}'. Add it in Settings before review."
+            )
 
-            metadata["old_class_id"] = old_class_id
-            metadata["class_id"] = new_class_id
-            metadata["corrected_species_name"] = new_species_name
-            metadata["needs_class_id_assignment"] = False
+        self._update_label_class(paths["txt"], new_class_id)
 
-        else:
-            metadata["old_class_id"] = old_class_id
-            metadata["class_id"] = None
-            metadata["corrected_species_name"] = new_species_name
-            metadata["needs_class_id_assignment"] = True
-
+        metadata["old_class_id"] = old_class_id
+        metadata["class_id"] = new_class_id
+        metadata["corrected_species_name"] = new_species_name
+        metadata["needs_class_id_assignment"] = False
         metadata["review_status"] = "corrected"
         metadata["reviewed_at"] = datetime.now().isoformat(timespec="seconds")
 
         self._write_metadata(paths["json"], metadata)
 
         self._safe_move(paths["img"], self.training_images / paths["img"].name)
-
-        if new_class_id is not None:
-            self._safe_move(paths["txt"], self.training_labels / paths["txt"].name)
-        else:
-            self._safe_move(paths["txt"], self.training_metadata / paths["txt"].name)
-
+        self._safe_move(paths["txt"], self.training_labels / paths["txt"].name)
         self._safe_move(paths["json"], self.training_metadata / paths["json"].name)
 
         return item

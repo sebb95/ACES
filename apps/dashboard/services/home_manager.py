@@ -3,7 +3,7 @@ import cv2
 
 from src.common.species import CLASS_NAMES
 from services.settings_service import SettingsService
-from src.vision.active_learning_logic import trigger_hard_example_save
+from src.vision.active_learning.active_learning_logic import trigger_hard_example_save
 from services.weight_manager import WeightManager
 
 
@@ -20,7 +20,7 @@ class HomeManager:
         self.frame_index = 0
         self.input_mode = "images"
         self.video_capture = None
-        self.frame_skip = 5 #UPDATE FOR NR BILDER per SEC! 30FPS/frame_skip=ønsket antall
+        self.frame_skip = 3 #UPDATE FOR NR BILDER per SEC! 30FPS/frame_skip=ønsket antall
         self.processing_finished = False
 
     def _get_settings(self) -> dict:

@@ -2,6 +2,7 @@ import streamlit as st
 import time
 from pathlib import Path
 from services.settings_service import SettingsService
+from services.training_service import TrainingService
 
 
 def _render_section_title(title: str) -> None:
@@ -51,6 +52,7 @@ def _get_dataset_folder_options() -> list[str]:
 
 
 def render_settings_page() -> None:
+    st.markdown("---")
     settings_service = SettingsService()
     config = settings_service.get()
 
@@ -150,12 +152,6 @@ def render_settings_page() -> None:
                 help="Plassholder for senere video-input. Video pakkes senere ut til frames.",
             )
 
-            frame_output_path = st.text_input(
-                "Frame-output fra video",
-                value=input_config.get("frame_output_path", "data/processed/frames/current_run"),
-                help="Hvor frames fra video skal lagres når video-støtte kobles på.",
-            )
-
         with st.expander("Modell", expanded=False):
 
             weight_files = _get_available_weight_files()
@@ -175,17 +171,6 @@ def render_settings_page() -> None:
 
         with st.expander("Trening", expanded=False):
 
-            training_model = st.selectbox(
-                "Modell for trening",
-                options=weight_files if weight_files else [selected_model],
-                index=0,
-            )
-
-            training_dataset_path = st.text_input(
-                "Treningsdataset",
-                value=training_config.get("dataset_path", "data/training_reviewed"),
-            )
-
             night_training_enabled = st.checkbox(
                 "Aktiver natt-trening",
                 value=bool(training_config.get("night_training_enabled", False)),
@@ -197,10 +182,42 @@ def render_settings_page() -> None:
             )
 
             training_status = training_config.get("status", "idle")
-            st.info(f"Treningsstatus: {training_status}")
+            if training_status == "running":
+                st.info("🟡 Treningsstatus: Trening pågår.")
+            elif training_status == "ready":
+                st.success("🟢 Treningsstatus: Modell klar.")
+            elif training_status == "failed":
+                st.error("🔴 Treningsstatus: Trening feilet.")
+            else:
+                st.caption("⚪ Treningsstatus: Ingen aktiv trening.")
 
-            if st.button("Start trening", use_container_width=True):
-                st.warning("Trening er foreløpig bare en placeholder.")
+            training_status = training_config.get("status", "idle")
+            training_running = training_status == "running"
+
+            if st.button(
+                "Start trening",
+                use_container_width=True,
+                disabled=training_running,
+            ):
+                try:
+                    service = TrainingService()
+
+                    with st.spinner("Trening pågår..."):
+                        service.run_training()
+
+                    st.success("Trening fullført.")
+                    st.rerun()
+
+                except Exception as e:
+                    st.error(f"Trening feilet: {e}")
+                    st.rerun()
+
+            if training_running:
+                if st.button("Avbryt trening", use_container_width=True):
+                    service = TrainingService()
+                    service._set_status("failed")
+                    st.warning("Trening avbrutt.")
+                    st.rerun()
 
     with right_col:
         with st.expander("Art og vekt", expanded=False):
@@ -229,27 +246,25 @@ def render_settings_page() -> None:
                 key="new_species_name",
             )
 
-            new_species_weight = st.number_input(
-                "Snittvekt ny art (kg)",
-                min_value=0.0,
-                value=0.0,
-                step=0.1,
-                key="new_species_weight",
-            )
-
             if st.button("Legg til art", use_container_width=True):
                 clean_name = new_species_name.strip()
 
                 if not clean_name:
                     st.error("Artsnavn kan ikke være tomt.")
-                elif clean_name in updated_species_weights:
-                    st.error("Arten finnes allerede.")
                 else:
-                    config["species"]["weights_kg"][clean_name] = float(new_species_weight)
-                    settings_service.update(config)
-                    st.toast("Art lagt til!", icon="✅")
-                    time.sleep(0.8)
-                    st.rerun()
+                    try:
+                        new_class_id = settings_service.add_species(clean_name)
+
+                        st.success(
+                            f"Art lagt til som klasse {new_class_id}. "
+                            "Sett snittvekt i artslisten. Modellen vil først kunne gjenkjenne arten etter ny trening."
+                        )
+
+                        time.sleep(1.5)
+                        st.rerun()
+
+                    except Exception as e:
+                        st.error(f"Kunne ikke legge til art: {e}")
 
         with st.expander("Gjennomgang / Active Learning", expanded=False):
 
