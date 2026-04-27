@@ -8,7 +8,7 @@ PENDING_DIR = Path("data/review_queue/pending")
 PENDING_DIR.mkdir(parents=True, exist_ok=True)
 
 # Definer maksgrense for køen
-MAX_QUEUE_SIZE = 500
+MAX_QUEUE_SIZE = 2000
 
 def _enforce_queue_limit():
     """
