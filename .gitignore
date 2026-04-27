@@ -57,8 +57,21 @@ data/**/*.jpeg
 data/**/*.png
 data/**/*.txt
 
+# Real data should never be committed
+# Ignore ALL data by default
+data/*
+
+# Allow only sample dataset
+!data/sample/
+!data/sample/**
+
 # Sample dataset used for testing is allowed
 # !data/sample/
+
+# Keep empty structure where needed
+!data/input/
+!data/input/.gitkeep
+
 
 # ----------------------------
 # Training / experiment outputs

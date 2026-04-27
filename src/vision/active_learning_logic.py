@@ -19,9 +19,15 @@ def _save_hard_example_worker(frame, poly_data, conf, cls_id):
         f.write(f"{cls_id} {poly_data}\n")
 
 def trigger_hard_example_save(frame, mask_coords, conf, cls_id):
-    """Filtrerer på konfidens og starter lagringstråden."""
     if 0.30 <= conf <= 0.80:
         frame_copy = frame.copy()
-        # Gjøre om liste med koordinater til en streng adskilt med mellomrom
         poly_data = " ".join(map(str, mask_coords))
-        threading.Thread(target=_save_hard_example_worker, args=(frame_copy, poly_data, conf, cls_id)).start()
+
+        threading.Thread(
+            target=_save_hard_example_worker,
+            args=(frame_copy, poly_data, conf, cls_id)
+        ).start()
+
+        return True
+
+    return False

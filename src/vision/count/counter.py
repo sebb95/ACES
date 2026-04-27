@@ -24,9 +24,9 @@ class CountConfig:
             - "negative": decreasing coordinate
             - "any": both directions
     """
-    line_position: float
-    axis: str = "y"
-    line_margin: float = 20.0
+    line_position: float = 600.0
+    axis: str = "x"
+    line_margin: float = 80.0
     min_positions: int = 2
     max_missing_frames: int = 30
     direction: str = "positive"
@@ -108,6 +108,14 @@ class LineCounter:
                 raise ValueError(f"Unsupported axis: {self.config.axis}")
 
             zone = self._get_zone(position_value)
+
+            #debug printout
+            print(
+                f"[COUNTER DEBUG] track={track_id} "
+                f"pos={position_value:.1f} "
+                f"zone={zone} "
+                f"class={class_id}"
+            )
 
             state = self.tracks.get(track_id)
             if state is None:
