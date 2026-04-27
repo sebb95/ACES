@@ -248,7 +248,7 @@ class NightOperations:
         model = YOLO(str(self.curr_pt.resolve()))
         model.train(
             data=str(self.yaml_path.resolve()), epochs=15, batch=16, lr0=0.001, 
-            mosaic=0.0, copy_paste=0.0, exist_ok=True, project=str(project_dir.resolve()), name="night_run"
+            mosaic=0.0, mixup=0.0, copy_paste=0.0, exist_ok=True, project=str(project_dir.resolve()), name="night_run"
         )
 
         new_pt = project_dir / "night_run" / "weights" / "best.pt"
