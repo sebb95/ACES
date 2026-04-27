@@ -42,19 +42,23 @@ env/
 *.swo
 
 # ----------------------------
-# Project: data & outputs
+# Project: data & outputs (ACES Spesifikk)
 # ----------------------------
 
-# Real data should never be committed
-data/raw/
-data/processed/
+# Ignorer all tung bildedata i vår nye struktur
+data/master/
+data/inbox/
+data/archive/
+data/dynamic_val/
 
-# If we later add labeling outputs
-data/labels/
-data/frames/
+# Ignorer alle bilder og labels generelt uansett hvor de ligger i data-mappen
+data/**/*.jpg
+data/**/*.jpeg
+data/**/*.png
+data/**/*.txt
 
 # Sample dataset used for testing is allowed
-# data/sample/ is intentionally tracked
+# !data/sample/
 
 # ----------------------------
 # Training / experiment outputs

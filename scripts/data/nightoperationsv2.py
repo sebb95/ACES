@@ -5,7 +5,19 @@ from collections import defaultdict
 from ultralytics import YOLO
 
 class NightOperations:
+    """
+    Hovedklasse for ACES Kontinuerlig Læring (MLOps Pipeline).
+    
+    Håndterer autonom nattlig finjustering av YOLO-modellen. 
+    Inkluderer datavask, dynamisk splitt, stratifisert historisk minne (Replay Buffer),
+    og en "Double Quality Gate" for å forhindre "Catastrophic Forgetting" og Model Drift.
+    """
+    
     def __init__(self):
+        """
+        Initialiserer filstier, mappe-strukturer, logging og sikkerhetsgrenser.
+        Bygger systemet basert på relative stier for å sikre portabilitet.
+        """
         # ==========================================
         # 1. DYNAMISK ROT-MAPPE
         # ==========================================
@@ -68,6 +80,11 @@ class NightOperations:
     # HOVEDMOTOR
     # ==========================================
     def run(self):
+        """
+        Hovedorkestratoren for natt-operasjonen. 
+        Kjører logikken steg-for-steg: Helsesjekk -> Datavask -> Sampling -> 
+        Data-splitt -> YAML-bygging -> Trening/Evaluering -> Arkivering.
+        """
         print("\n" + "="*50)
         print("🌙 STARTER NIGHT OPERATIONS V2.0 (MODULÆR)")
         print("="*50)
@@ -98,6 +115,13 @@ class NightOperations:
     # HJELPEMETODER
     # ==========================================
     def check_system_health(self):
+        """
+        Sjekker om systemet er i stand til å kjøre en treningsøkt.
+        Verifiserer tilgjengelig diskplass og at baseline-modellen eksisterer.
+        
+        Returns:
+            bool: True hvis systemet er friskt, False hvis operasjonen må avbrytes.
+        """
         free_space_gb = shutil.disk_usage(self.BASE_DIR).free / (1024**3)
         if free_space_gb < 5.0:
             self.logger.error(f"KRITISK FEIL: Lite diskplass ({free_space_gb:.1f} GB igjen).")
@@ -110,6 +134,13 @@ class NightOperations:
         return True
 
     def hent_og_vask_innboks(self):
+        """
+        Skanner innboksen for nye bilder godkjent for trening.
+        Filtrerer bort korrupte filer (0 bytes) og bilder som mangler annoteringer (.txt).
+        
+        Returns:
+            list: En liste med Path-objekter til de gyldige bildefilene.
+        """
         raw_imgs = [f for f in self.approved_img_dir.glob("*") if f.is_file() and f.suffix.lower() in ['.jpg', '.jpeg', '.png']]
         if not raw_imgs:
             self.logger.info("Ingen nye data. Avslutter.")
@@ -127,6 +158,16 @@ class NightOperations:
         return valid_imgs
 
     def splitt_til_trening_og_eksamen(self, valid_new_imgs):
+        """
+        Deler de nye bildene i treningsdata (70%) og valideringsdata (30%).
+        Flytter valideringsbildene permanent til det dynamiske testsettet.
+        
+        Args:
+            valid_new_imgs (list): Liste over alle godkjente nye bilder.
+            
+        Returns:
+            list: Bildene som er reservert utelukkende for trening.
+        """
         random.shuffle(valid_new_imgs)
         split_idx = max(1, int(len(valid_new_imgs) * 0.3)) 
         
@@ -147,6 +188,14 @@ class NightOperations:
         return train_imgs
 
     def bygg_yaml_filer(self, treningsbilder, buffer_size):
+        """
+        Genererer nødvendige .yaml konfigurasjonsfiler for YOLO-trening og evaluering.
+        Bygger et kombinert treningssett av nye bilder + Replay Buffer.
+        
+        Args:
+            treningsbilder (list): Dagens nye bilder som skal brukes til trening.
+            buffer_size (int): Det totale antallet historiske bilder som skal hentes.
+        """
         with open(self.master_yaml_path, 'r') as f:
             class_dict = yaml.safe_load(f).get("names", {})
 
@@ -173,6 +222,16 @@ class NightOperations:
             }, f, sort_keys=False)
 
     def tren_og_evaluer_modell(self):
+        """
+        Kjernen i Active Learning-loopen. Trener modellen og utfører 'Double Quality Gate'.
+        
+        Logikk:
+        1. Tester dagens modell mot Master og Ny data.
+        2. Trener en oppdatert modell på den kombinerte treningsdataen.
+        3. Sammenligner ny modell mot den gamle.
+        4. Krever forbedring på ny data og tolererer maks 2% dropp på master-data.
+        5. Ruller ut til Edge (TensorRT) ved bestått.
+        """
         print("📈 Kjører pre-test av eksisterende modeller...")
         torch.cuda.empty_cache(); gc.collect()
         
@@ -225,6 +284,14 @@ class NightOperations:
             print("❌ QUALITY GATE FEILET. Kastes. Beholder gammel modell.")
 
     def rydd_opp_arkiv(self, treningsbilder):
+        """
+        Flytter brukt treningsdata over i et lukket arkiv.
+        Dette forhindrer at systemet trener på samme data neste natt (Dataset Poisoning),
+        og legger grunnlaget for fremtidig utvidelse av Master-settet.
+        
+        Args:
+            treningsbilder (list): Bildene som ble brukt i nattens treningsøkt.
+        """
         print("📦 Tømmer innboksen og arkiverer brukt data...")
         for img in treningsbilder:
             dest_img = self.archive_img_dir / img.name
@@ -238,6 +305,18 @@ class NightOperations:
                 shutil.move(str(lbl_file), str(dest_lbl))
 
     def build_balanced_replay_buffer(self, class_dict, min_instances=25, max_total=300):
+        """
+        Bygger en Stratifisert Replay Buffer fra historisk data for å balansere ny læring.
+        Sikrer at modellen repeterer alle klasser (Catastrophic Forgetting forsvar).
+        
+        Args:
+            class_dict (dict): Ordbok med alle klassenavn og ID-er.
+            min_instances (int): Minimum antall forekomster av hver fiskeart som MÅ velges.
+            max_total (int): Totalt antall historiske bilder som skal returneres.
+            
+        Returns:
+            list: Path-objekter til det historiske bilde-utvalget.
+        """
         label_files = list(self.golden_lbl_dir.glob("*.txt"))
         class_to_files = defaultdict(list)
         for lbl in label_files:

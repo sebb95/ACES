@@ -1,0 +1,18 @@
+path: C:\Users\PC\Documents\Datateknikk-23\1.Batchoppgv\Data\Data_ACES_lys_300
+train: train/images
+val: val/images
+
+# Klassenavn (Må matche ID-en i dine .txt filer!)
+names:
+  0: Breiflab
+  1: Brosme
+  2: Flyndre
+  3: Hyse
+  4: Kveite
+  5: Lange
+  6: Lyr
+  7: Sei
+  8: Torsk
+  9: Uer
+  10: Bifangst
+  11: Ukjent
