@@ -319,13 +319,10 @@ class NightOperations:
     def rydd_opp_arkiv(self, treningsbilder):
         """
         Flytter brukt treningsdata over i et lukket arkiv.
-        Dette forhindrer at systemet trener på samme data neste natt (Dataset Poisoning),
-        og legger grunnlaget for fremtidig utvidelse av Master-settet.
-        
-        Args:
-            treningsbilder (list): Bildene som ble brukt i nattens treningsøkt.
+        Flytter også valideringsdata fra dynamic_val til arkivet for å tømme mappen.
         """
         print("📦 Tømmer innboksen og arkiverer brukt data...")
+        # Arkiverer treningsdata (70%)
         for img in treningsbilder:
             dest_img = self.archive_img_dir / img.name
             if dest_img.exists(): dest_img.unlink()
@@ -336,6 +333,20 @@ class NightOperations:
                 dest_lbl = self.archive_lbl_dir / lbl_file.name
                 if dest_lbl.exists(): dest_lbl.unlink()
                 shutil.move(str(lbl_file), str(dest_lbl))
+
+        # Arkiverer valideringsdata (30% fra dynamic_val)
+        print("🧹 Tømmer eksamenslokalet (dynamic_val) til arkivet...")
+        for img in self.dynamic_val_img_dir.glob("*"):
+            if img.is_file() and img.suffix.lower() in ['.jpg', '.jpeg', '.png']:
+                dest_img = self.archive_img_dir / img.name
+                if dest_img.exists(): dest_img.unlink()
+                shutil.move(str(img), str(dest_img))
+
+                lbl_file = self.dynamic_val_lbl_dir / f"{img.stem}.txt"
+                if lbl_file.exists():
+                    dest_lbl = self.archive_lbl_dir / lbl_file.name
+                    if dest_lbl.exists(): dest_lbl.unlink()
+                    shutil.move(str(lbl_file), str(dest_lbl))
 
     def build_balanced_replay_buffer(self, class_dict, min_instances=25, max_total=300):
         """
