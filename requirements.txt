@@ -47,11 +47,17 @@ streamlit==1.54.0
 sympy==1.14.0
 tenacity==9.1.4
 toml==0.10.2
-torch==2.2.2
-torchvision==0.17.2
 tornado==6.5.4
 typing_extensions==4.15.0
 tzdata==2025.3
 ultralytics==8.4.14
 ultralytics-thop==2.0.18
 urllib3==2.6.3
+--extra-index-url https://download.pytorch.org/whl/cu128
+torch==2.2.2
+torchvision==0.17.2
+
+# --- 2. Edge AI & System-pakker
+onnx>=1.15.0          # Kreves for konvertering av YOLO-modellen
+onnxruntime>=1.17.0   # ONNX kjøretidsmiljø
+tensorrt>=8.6.1       # Kreves for å bygge .engine-fil for 6GB VRAM
