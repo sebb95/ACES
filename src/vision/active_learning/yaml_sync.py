@@ -1,6 +1,5 @@
 from pathlib import Path
 import yaml
-
 from src.common.species import CLASS_NAMES
 
 
@@ -10,20 +9,31 @@ def _save_yaml(path: Path, data: dict) -> None:
         yaml.safe_dump(data, f, sort_keys=False, allow_unicode=True)
 
 
+def _get_name_to_id() -> dict[str, int]:
+    """Mapper klassenavn → ID"""
+    return {name: int(class_id) for class_id, name in CLASS_NAMES.items()}
+
+
 def _used_class_ids(label_dirs: list[Path]) -> set[int]:
     used = set()
+    name_to_id = _get_name_to_id()
 
     for label_dir in label_dirs:
         if not label_dir.exists():
             continue
-
         for label_file in label_dir.glob("*.txt"):
             for line in label_file.read_text(encoding="utf-8").splitlines():
                 parts = line.strip().split()
                 if not parts:
                     continue
-                used.add(int(parts[0]))
-
+                first = parts[0]
+                if first in name_to_id:
+                    used.add(name_to_id[first])
+                else:
+                    try:
+                        used.add(int(first))
+                    except ValueError:
+                        pass
     return used
 
 
@@ -37,16 +47,13 @@ def get_class_names_from_species_py() -> dict[int, str]:
 def validate_labels_against_species_py(label_dirs: list[Path]) -> None:
     class_names = get_class_names_from_species_py()
     used_ids = _used_class_ids(label_dirs)
-
     missing_ids = sorted(
         class_id for class_id in used_ids
         if class_id not in class_names
     )
-
     if missing_ids:
         raise ValueError(
-            "Training labels contain class IDs not defined in src/common/species.py: "
-            f"{missing_ids}. Add these species in Settings before training."
+            f"Training labels contain class IDs not defined in src/common/species.py: {missing_ids}"
         )
 
 
@@ -55,12 +62,7 @@ def write_master_dataset_yaml(
     master_root: Path,
     label_dirs: list[Path],
 ) -> dict[int, str]:
-    """
-    Writes data/master/dataset.yaml using src/common/species.py.
-    """
-
     validate_labels_against_species_py(label_dirs)
-
     class_names = get_class_names_from_species_py()
 
     yaml_data = {
@@ -72,7 +74,6 @@ def write_master_dataset_yaml(
             for class_id in sorted(class_names)
         },
     }
-
     _save_yaml(master_yaml_path, yaml_data)
     return yaml_data["names"]
 
@@ -85,12 +86,6 @@ def write_night_training_yaml(
     dynamic_val_img_dir: Path,
     class_names: dict[int, str],
 ) -> None:
-    """
-    Writes outputs/night_run/night_dataset.yaml.
-    Train = train_paths.txt
-    Val = master val + dynamic val
-    """
-
     yaml_data = {
         "path": str(run_dir.resolve()),
         "train": str(train_paths_file.resolve()),
@@ -103,7 +98,6 @@ def write_night_training_yaml(
             for class_id in sorted(class_names)
         },
     }
-
     _save_yaml(yaml_path, yaml_data)
 
 
@@ -114,11 +108,6 @@ def write_dynamic_val_yaml(
     dynamic_val_img_dir: Path,
     class_names: dict[int, str],
 ) -> None:
-    """
-    Writes outputs/night_run/dynamic_val.yaml.
-    Used to evaluate model on today's reviewed validation split.
-    """
-
     yaml_data = {
         "path": str(run_dir.resolve()),
         "train": str(train_paths_file.resolve()),
@@ -128,5 +117,4 @@ def write_dynamic_val_yaml(
             for class_id in sorted(class_names)
         },
     }
-
     _save_yaml(yaml_path, yaml_data)

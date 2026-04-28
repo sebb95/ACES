@@ -2,6 +2,13 @@
 import sys
 from pathlib import Path
 
+import warnings
+import logging
+
+# Skjul de irriterende Streamlit Context-advarslene
+warnings.filterwarnings("ignore", category=UserWarning, module="streamlit")
+logging.getLogger("streamlit.runtime.scriptrunner_utils.script_run_context").setLevel(logging.ERROR)
+
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SRC_PATH = PROJECT_ROOT / "src"
 
