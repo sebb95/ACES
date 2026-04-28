@@ -14,6 +14,12 @@ from src.vision.count.counter import LineCounter, CountConfig
 
 
 class HomeService:
+    """
+    Service-lag mellom Streamlit-siden og HomeManager.
+
+    Klassen oppretter og holder på HomeManager i st.session_state, slik at
+    tracker, counter og session-tilstand ikke nullstilles ved hver Streamlit-rerun.
+    """
     def __init__(self):
         self.review_service = ReviewService()
         self.settings_service = SettingsService()
@@ -81,6 +87,11 @@ class HomeService:
         }
 
     def start(self) -> None:
+        """
+        Starter telleøkten og oppretter en bakgrunnstråd for prosessering.
+
+        Tråden gjør at videoen kan prosesseres uten at Streamlit-UI blokkeres.
+        """
         self.manager.start()
         
         if not hasattr(self.manager, "processing_thread") or not self.manager.processing_thread.is_alive():
@@ -92,14 +103,20 @@ class HomeService:
             self.manager.processing_thread.start()
 
     def _run_loop(self) -> None:
-        """Denne loopen kjører uavhengig av Streamlit, så fort maskinen klarer."""
+        """
+        Kjører prosessering i bakgrunnstråd så lenge manager er aktiv.
+
+        Loopen ligger utenfor Streamlit sin vanlige rerun-syklus og skal derfor
+        kun kalle backend-logikk, ikke skrive direkte til UI.
+        """
         while self.manager.is_running:
             self.manager.step()
+            time.sleep(0.001)
             # Valgfritt: time.sleep(0.001) for å forhindre at CPU-en låser seg helt 100%
             
         print("[THREAD] Video-prosessering er ferdig/stoppet.")
 
-    # Du trenger egentlig ikke kalle step() manuelt fra UI lenger, 
+    # Vi trenger egentlig ikke kalle step() manuelt fra UI lenger, 
     # siden tråden gjør det automatisk, men vi lar den stå:
     def step(self) -> None:
         pass # Tråden håndterer nå dette!
