@@ -316,3 +316,26 @@ class HomeManager:
             "dataset_path": str(dataset_path),
             "dataset_exists": dataset_path.exists(),
         }
+    
+    def _resolve_processing_device(self) -> str:
+        """
+        Velger trygg prosesseringsenhet for modellen.
+
+        CUDA brukes kun dersom PyTorch faktisk finner en CUDA-GPU.
+        På Mac brukes MPS dersom tilgjengelig, ellers CPU. Dette hindrer at
+        Mac prøver å bruke device=0/CUDA eller TensorRT-spesifikke innstillinger.
+        """
+        try:
+            import torch
+
+            if torch.cuda.is_available():
+                return "cuda"
+
+            if platform.system() == "Darwin":
+                if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+                    return "mps"
+
+        except Exception:
+            pass
+
+        return "cpu"
