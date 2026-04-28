@@ -1,3 +1,5 @@
+import threading
+import time
 import streamlit as st
 
 from services.home_manager import HomeManager
@@ -79,13 +81,28 @@ class HomeService:
 
     def start(self) -> None:
         self.manager.start()
+        
+        # NYTT: Start en bakgrunnstråd som kjører videoen på maks hastighet!
+        # daemon=True betyr at tråden dør automatisk hvis du lukker appen
+        if not hasattr(self.manager, "processing_thread") or not self.manager.processing_thread.is_alive():
+            self.manager.processing_thread = threading.Thread(target=self._run_loop, daemon=True)
+            self.manager.processing_thread.start()
 
+    def _run_loop(self) -> None:
+        """Denne loopen kjører uavhengig av Streamlit, så fort maskinen klarer."""
+        while self.manager.is_running:
+            self.manager.step()
+            # Valgfritt: time.sleep(0.001) for å forhindre at CPU-en låser seg helt 100%
+            
+        print("[THREAD] Video-prosessering er ferdig/stoppet.")
+
+    # Du trenger egentlig ikke kalle step() manuelt fra UI lenger, 
+    # siden tråden gjør det automatisk, men vi lar den stå:
     def step(self) -> None:
-        self.manager.step()
+        pass # Tråden håndterer nå dette!
 
     def stop(self) -> None:
         self.manager.stop()
-
     def is_running(self) -> bool:
         return self.manager.is_running
     
