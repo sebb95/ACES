@@ -307,5 +307,5 @@ def render_home_page() -> None:
 
     if service.is_running():
         service.step()
-        time.sleep(0.1)
+        time.sleep(1.0)
         st.rerun()

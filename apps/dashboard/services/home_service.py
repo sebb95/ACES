@@ -1,6 +1,7 @@
 import threading
 import time
 import streamlit as st
+from streamlit.runtime.scriptrunner import add_script_run_ctx # LEGG TIL DENNE!
 
 from services.home_manager import HomeManager
 from services.review_service import ReviewService
@@ -82,10 +83,12 @@ class HomeService:
     def start(self) -> None:
         self.manager.start()
         
-        # NYTT: Start en bakgrunnstråd som kjører videoen på maks hastighet!
-        # daemon=True betyr at tråden dør automatisk hvis du lukker appen
         if not hasattr(self.manager, "processing_thread") or not self.manager.processing_thread.is_alive():
             self.manager.processing_thread = threading.Thread(target=self._run_loop, daemon=True)
+            
+            # KOBLE TRÅDEN TIL STREAMLIT:
+            add_script_run_ctx(self.manager.processing_thread) 
+            
             self.manager.processing_thread.start()
 
     def _run_loop(self) -> None:
