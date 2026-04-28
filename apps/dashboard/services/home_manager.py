@@ -20,7 +20,7 @@ class HomeManager:
         self.frame_index = 0
         self.input_mode = "images"
         self.video_capture = None
-        self.frame_skip = 3 #UPDATE FOR NR BILDER per SEC! 30FPS/frame_skip=ønsket antall
+        self.frame_skip = 30 #UPDATE FOR NR BILDER per SEC! 30FPS/frame_skip=ønsket antall
         self.processing_finished = False
 
     def _get_settings(self) -> dict:
@@ -114,71 +114,73 @@ class HomeManager:
     def start(self):
         self.session_service.start_session()
         self._configure_tracker()
-
         self.tracker.reset()
         self.counter.reset()
-        
+
         settings = self._get_settings()
         input_mode = self._get_input_mode()
         self.input_mode = input_mode
 
         if input_mode == "video":
             video_path = self._resolve_video_path()
-
             if not video_path.exists():
                 raise FileNotFoundError(f"Video not found: {video_path}")
 
             self.video_capture = cv2.VideoCapture(str(video_path))
-
             if not self.video_capture.isOpened():
                 raise RuntimeError(f"Could not open video: {video_path}")
 
+            # === NY: Optimaliseringer for video ===
+            self.frame_skip = settings.get("processing", {}).get("frame_skip", 2)  # Justerbar
+            self.imgsz = settings.get("processing", {}).get("imgsz", 640)
+            self.half = settings.get("processing", {}).get("half", True)
+            self.device = settings.get("processing", {}).get("device", 0)
+
             self.image_paths = []
             self.image_iterator = None
-
-            print(f"[START] Video opened: {video_path}")
+            print(f"[START] Video opened: {video_path} (frame_skip={self.frame_skip})")
 
         else:
             self.image_paths = self._collect_image_paths()
             self.image_iterator = iter(self.image_paths)
-
             print(f"[START] Image folder loaded: {len(self.image_paths)} images")
 
         self.frame_index = 0
         self.processing_finished = False
         self.is_running = True
 
-        #debug status prints
         print(f"[START] mode={input_mode}")
         print(f"[START] total frames loaded: {len(self.image_paths)}")
 
     def step(self):
-        print(f"[STEP] frame_index={self.frame_index}") #debug status print
         if not self.is_running:
             return
+
+        print(f"[STEP] frame_index={self.frame_index}")
 
         if self.input_mode == "video":
             frame = None
             success = False
 
-            for _ in range(self.frame_skip):
-                success, frame = self.video_capture.read()
-                if not success:
-                    break
+            # LØSNING: Bruk grab() for å hoppe over frames lynraskt uten CPU-dekoding
+            for _ in range(self.frame_skip - 1):
+                self.video_capture.grab() 
+            
+            # Bruk read() KUN på den framen du faktisk skal sende til YOLO
+            success, frame = self.video_capture.read()
 
             if not success:
                 print("[VIDEO] No more frames → processing finished")
-
                 if self.video_capture is not None:
                     self.video_capture.release()
                     self.video_capture = None
-
                 self.is_running = False
                 self.processing_finished = True
                 return
 
             image_path = f"video_frame_{self.frame_index:06d}"
 
+            # === KORRIGERT KALL (uten ugyldige parametere) ===
             result = self.tracker.update_frame(
                 frame=frame,
                 frame_name=image_path,
@@ -195,12 +197,12 @@ class HomeManager:
 
             result = self.tracker.update(str(image_path))
 
+        # === RESTEN AV LOGIKKEN (uendret) ===
         counted_before = set(self.counter.get_counted_track_ids())
-
-        
         tracked_objects = result.get("tracked_objects", [])
         original_frame = result.get("original_frame")
-        print(f"[TRACK] objects={len(tracked_objects)}") #debug status print
+
+        print(f"[TRACK] objects={len(tracked_objects)}")
 
         self.counter.update(
             tracked_objects=tracked_objects,
@@ -209,26 +211,23 @@ class HomeManager:
 
         counted_after = set(self.counter.get_counted_track_ids())
         newly_counted_ids = counted_after - counted_before
+        new_count = len(newly_counted_ids)
 
-        new_count = len(newly_counted_ids) #debug status print
-        if new_count > 0:     
+        if new_count > 0:
             print(f"[COUNT] +{new_count} fish")
 
         if newly_counted_ids:
             review_min_confidence, review_max_confidence = self._get_review_thresholds()
-
             session = self.session_service.get_active_session()
             session_id = session.get("session_id") if session else None
 
             for obj in tracked_objects:
                 track_id = obj.get("track_id")
-
                 if track_id not in newly_counted_ids:
                     continue
 
                 class_id = obj.get("class_id")
                 species_name = CLASS_NAMES.get(class_id, f"Ukjent ({class_id})")
-
                 self.session_service.increment_species_count(species_name)
 
                 confidence = obj.get("confidence", 0.0)
