@@ -131,7 +131,7 @@ class HomeManager:
                 raise RuntimeError(f"Could not open video: {video_path}")
 
             # === NY: Optimaliseringer for video ===
-            self.frame_skip = settings.get("processing", {}).get("frame_skip", 2)  # Justerbar
+            self.frame_skip = settings.get("processing", {}).get("frame_skip", 0)  # Justerbar
             self.imgsz = settings.get("processing", {}).get("imgsz", 640)
             self.half = settings.get("processing", {}).get("half", True)
             self.device = settings.get("processing", {}).get("device", 0)
@@ -156,7 +156,7 @@ class HomeManager:
         if not self.is_running:
             return
 
-        print(f"[STEP] frame_index={self.frame_index}")
+        #print(f"[STEP] frame_index={self.frame_index}")
 
         if self.input_mode == "video":
             frame = None
@@ -202,7 +202,7 @@ class HomeManager:
         tracked_objects = result.get("tracked_objects", [])
         original_frame = result.get("original_frame")
 
-        print(f"[TRACK] objects={len(tracked_objects)}")
+        #print(f"[TRACK] objects={len(tracked_objects)}")
 
         self.counter.update(
             tracked_objects=tracked_objects,
