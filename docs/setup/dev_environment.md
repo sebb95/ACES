@@ -10,7 +10,7 @@ macOS / Linux:
 source .venv_aces/bin/activate
 
 Win
-.venv_aces\Scripts\activate
+.venv\Scripts\activate
 
 ## Install dependencies
 
