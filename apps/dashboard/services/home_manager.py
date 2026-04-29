@@ -1,6 +1,7 @@
 from pathlib import Path
 import cv2
 import platform
+import math
 
 from src.common.species import CLASS_NAMES
 from services.settings_service import SettingsService

@@ -30,7 +30,7 @@ class FishTracker:
         if not self.weights_path.exists():
             raise FileNotFoundError(f"Weights file not found: {self.weights_path}")
 
-        self.model = YOLO(str(self.weights_path))
+        self.model = YOLO(str(self.weights_path), task="segment")
         print(self.model.names)
 
     def update(
@@ -120,7 +120,7 @@ class FishTracker:
 
     def reset(self) -> None:
         """Reset tracking state."""
-        self.model = YOLO(str(self.weights_path))
+        self.model = YOLO(str(self.weights_path), task="segment")
 
     def set_weights_path(self, weights_path: str) -> None:
         self.weights_path = Path(weights_path)
@@ -128,7 +128,7 @@ class FishTracker:
         if not self.weights_path.exists():
             raise FileNotFoundError(f"Weights file not found: {self.weights_path}")
 
-        self.model = YOLO(str(self.weights_path))
+        self.model = YOLO(str(self.weights_path), task="segment")
 
     def update_frame(
         self,
@@ -146,6 +146,7 @@ class FishTracker:
             persist=True,
             save=False,
             verbose=False,
+            imgsz=640,
         )
 
         result = results[0]
