@@ -26,7 +26,11 @@ def _get_available_weight_files() -> list[str]:
     weights_path = Path("outputs/weights")
     if not weights_path.exists():
         return []
-    return sorted([f.name for f in weights_path.glob("*.pt")])
+    
+    return sorted([
+        f.name for f in weights_path.iterdir() 
+        if f.is_file() and f.suffix in [".pt", ".engine"]
+    ])
 
 
 def _get_dataset_folder_options() -> list[str]:
