@@ -1,6 +1,8 @@
+import threading
+import logging
+import os
 from datetime import datetime
 from pathlib import Path
-
 from src.vision.active_learning.night_operations import NightOperations
 from services.settings_service import SettingsService
 
@@ -18,7 +20,17 @@ class TrainingService:
 
     def run_training(self):
         self._set_status("running")
+        
+        # Starter treningen i en egen tråd
+        thread = threading.Thread(target=self._training_task, daemon=True)
+        thread.start()
 
+    def _training_task(self):
+        
+        os.environ["STREAMLIT_LOGGER_LEVEL"] = "error"
+        logging.getLogger("streamlit").setLevel(logging.ERROR)
+        logging.getLogger("streamlit.runtime.state.session_state_proxy").setLevel(logging.CRITICAL)
+        
         try:
             trainer = NightOperations(
                 current_model_path=Path("outputs/weights/best.pt"),
