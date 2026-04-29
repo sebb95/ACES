@@ -24,7 +24,7 @@ class SettingsService:
 
     DEFAULT_CONFIG: Dict[str, Any] = {
         "model": {
-            "selected_model": "best.pt",
+           "selected_model": "production.engine",
         },
         "input": {
             "input_type": "video_file",

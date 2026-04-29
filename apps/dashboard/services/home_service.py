@@ -28,7 +28,7 @@ class HomeService:
 
     def _get_initial_weights_path(self) -> str:
         settings = self.settings_service.get()
-        selected_model = settings.get("model", {}).get("selected_model", "best.pt")
+        selected_model = settings.get("model", {}).get("selected_model", "production.engine")
         return f"outputs/weights/{selected_model}"
 
     def _get_or_create_manager(self) -> HomeManager:
@@ -37,7 +37,7 @@ class HomeService:
 
             counter = LineCounter(
                 CountConfig(
-                        line_position=500.0,
+                        line_position=1000.0,
                         axis="x",
                         line_margin=90.0,
                         min_positions=2,

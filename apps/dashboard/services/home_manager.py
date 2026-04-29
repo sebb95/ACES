@@ -165,7 +165,7 @@ class HomeManager:
             # Justerbar frame skipping.
             # Viktig: for høy frame_skip kan ødelegge linjebasert telling fordi
             # fisken kan passere tellelinjen mellom to prosesserte frames.
-            self.frame_skip = int(processing_settings.get("frame_skip", 5))
+            self.frame_skip = int(processing_settings.get("frame_skip", 1))
             self.frame_skip = max(1, self.frame_skip)
 
             self.imgsz = int(processing_settings.get("imgsz", 640))
