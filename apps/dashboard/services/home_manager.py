@@ -42,7 +42,7 @@ class HomeManager:
         self.frame_index = 0
         self.input_mode = "images"
         self.video_capture = None
-        self.frame_skip = 1 #30FPS / 1 = 30 bilder per sec <- default
+        self.frame_skip = 0 #30FPS / 1 = 30 bilder per sec <- default
         self.processing_finished = False
 
     def _get_settings(self) -> dict:

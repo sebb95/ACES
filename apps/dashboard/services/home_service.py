@@ -37,7 +37,7 @@ class HomeService:
 
             counter = LineCounter(
                 CountConfig(
-                        line_position=1000.0,
+                        line_position=800.0,
                         axis="x",
                         line_margin=90.0,
                         min_positions=2,
