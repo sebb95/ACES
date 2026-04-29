@@ -1,11 +1,24 @@
 import copy
 import json
 import re
+import importlib
+import src.common.species as species_module
 from pathlib import Path
 from typing import Any, Dict
 
 
 class SettingsService:
+    """
+    Håndterer lasting, lagring og migrering av runtime-innstillinger.
+
+    SettingsService bruker configs/runtime_config.json som persistent
+    konfigurasjon for dashboardet, blant annet valgt modell, input-kilde,
+    active learning-grenser, treningsstatus og artsvekter.
+
+    Klassen håndterer også oppdatering av species.py når nye arter legges til
+    via Innstillinger. Etterpå synkroniseres runtime_config slik at nye arter
+    får standard snittvekt og blir tilgjengelige i UI uten restart.
+    """
     CONFIG_PATH = Path("configs/runtime_config.json")
     SPECIES_PATH = Path("src/common/species.py")
 
@@ -68,7 +81,10 @@ class SettingsService:
 
     def _load(self) -> Dict[str, Any]:
         self._ensure_exists()
-        return self._load_raw()
+        config = self._load_raw()
+        config = self._sync_species_weights(config)
+        self._save(config)
+        return config
 
     def _save(self, config: Dict[str, Any]) -> None:
         self.CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -77,8 +93,9 @@ class SettingsService:
 
     def _merge_with_defaults(self, config: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Merge existing config with defaults to support migration
-        when new fields are added.
+        Slår eksisterende config sammen med DEFAULT_CONFIG.
+        Brukes som enkel migrering når nye felt legges til i systemet,
+        slik at gamle runtime_config-filer fortsatt fungerer.
         """
         merged = copy.deepcopy(self.DEFAULT_CONFIG)
 
@@ -141,4 +158,48 @@ class SettingsService:
 
         self.SPECIES_PATH.write_text(content, encoding="utf-8")
 
+        config = self._load_raw()
+        config.setdefault("species", {})
+        config["species"].setdefault("weights_kg", {})
+        config["species"]["weights_kg"].setdefault(species_name, 1.0)
+        self._save(config)
+
+        self._reload_species()
+
         return new_id
+    
+    def _reload_species(self):
+        """
+        Leser species.py på nytt slik at arter lagt til via Innstillinger
+        blir tilgjengelige uten restart av Streamlit.
+        """
+        return importlib.reload(species_module)
+
+    def _sync_species_weights(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Sørger for at artsvekter i runtime_config samsvarer med species.py.
+
+        Nye arter får standard snittvekt 1.0 kg. Arter som er fjernet fra
+        species.py fjernes også fra config, slik at gamle testarter ikke blir
+        liggende igjen i UI.
+        """
+        species = self._reload_species()
+
+        config.setdefault("species", {})
+        config["species"].setdefault("weights_kg", {})
+
+        weights = config["species"]["weights_kg"]
+
+        for class_id in sorted(species.CLASS_NAMES):
+            species_name = species.CLASS_NAMES[class_id]
+
+            if species_name not in weights:
+                weights[species_name] = 1.0
+
+        valid_species_names = set(species.CLASS_NAMES.values())
+
+        for species_name in list(weights.keys()):
+            if species_name not in valid_species_names:
+                del weights[species_name]
+
+        return config

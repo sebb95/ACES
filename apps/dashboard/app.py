@@ -1,4 +1,16 @@
-#run from bash: streamlit run apps/dashboard/app.py
+#kommand till å kjøre fra bash: streamlit run apps/dashboard/app.py
+
+"""
+Hovedinngang for ACES Streamlit-dashboard.
+
+Denne filen:
+- setter opp importstier for prosjektet
+- konfigurerer layout og visning i Streamlit
+- kjører oppstartssjekker (f.eks. treningsstatus)
+- renderer toppnavigasjonen
+- ruter til riktig side i dashboardet
+"""
+
 import sys
 from pathlib import Path
 
@@ -32,9 +44,11 @@ st.set_page_config(
     layout="wide",
 )
 
-training_service = TrainingService()
-training_service.recover_if_stuck()
-TrainingService().maybe_run_scheduled_training()
+if "training_startup_checked" not in st.session_state:
+    training_service = TrainingService()
+    training_service.recover_if_stuck()
+    training_service.maybe_run_scheduled_training()
+    st.session_state["training_startup_checked"] = True
 
 st.markdown(
     """

@@ -23,9 +23,7 @@
             "Torsk": 2.4,
             "Uer": 0.8,
             "Bifangst": 1.0,
-            "Ukjent": 1.0,
-            "Breiflabb": 4.0,
-            "barracuda": 5.0
+            "Ukjent": 1.0
         }
     },
     "active_learning": {

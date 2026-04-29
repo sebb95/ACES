@@ -1,5 +1,6 @@
 from pathlib import Path
 import cv2
+import platform
 
 from src.common.species import CLASS_NAMES
 from services.settings_service import SettingsService
@@ -8,6 +9,26 @@ from services.weight_manager import WeightManager
 
 
 class HomeManager:
+    """
+    Orkestrerer runtime for fangstregistrering i ACES.
+
+    HomeManager kobler sammen:
+    - input (video eller bilder)
+    - tracking (FishTracker)
+    - telling (LineCounter)
+    - session-lagring (SessionService)
+    - active learning (lagring til gjennomgang)
+
+    Ansvar:
+    - Starte og stoppe en økt (Økt)
+    - Prosessere frames fortløpende
+    - Oppdatere teller og artsfordeling
+    - Sende usikre, men telte, observasjoner til review
+
+    Merk:
+    - Selve prosesseringen kjøres typisk i en bakgrunnstråd (via HomeService)
+    - UI er stateless (Streamlit), så all runtime-tilstand holdes her
+    """
     def __init__(self, tracker, counter, session_service):
         self.tracker = tracker
         self.counter = counter
@@ -20,7 +41,7 @@ class HomeManager:
         self.frame_index = 0
         self.input_mode = "images"
         self.video_capture = None
-        self.frame_skip = 0
+        self.frame_skip = 1 #30FPS / 1 = 30 bilder per sec <- default
         self.processing_finished = False
 
     def _get_settings(self) -> dict:
@@ -112,68 +133,137 @@ class HomeManager:
             )
 
     def start(self):
+        """
+        Starter en ny telleøkt.
+
+        Funksjonen nullstiller tracker og counter, leser valgt input-type fra
+        innstillinger, åpner video eller bildefolder, og setter runtime-status
+        slik at step() kan begynne å prosessere frames.
+        """
         self.session_service.start_session()
         self._configure_tracker()
         self.tracker.reset()
         self.counter.reset()
 
         settings = self._get_settings()
-        input_mode = self._get_input_mode()
-        self.input_mode = input_mode
+        self.input_mode = self._get_input_mode()
 
-        if input_mode == "video":
+        if self.input_mode == "video":
             video_path = self._resolve_video_path()
+
             if not video_path.exists():
                 raise FileNotFoundError(f"Video not found: {video_path}")
 
             self.video_capture = cv2.VideoCapture(str(video_path))
+
             if not self.video_capture.isOpened():
                 raise RuntimeError(f"Could not open video: {video_path}")
 
             # === NY: Optimaliseringer for video ===
-            self.frame_skip = settings.get("processing", {}).get("frame_skip", 0)  # Justerbar
-            self.imgsz = settings.get("processing", {}).get("imgsz", 640)
-            self.half = settings.get("processing", {}).get("half", True)
-            self.device = settings.get("processing", {}).get("device", 0)
+            processing_settings = settings.get("processing", {})
+
+            # Justerbar frame skipping.
+            # Viktig: for høy frame_skip kan ødelegge linjebasert telling fordi
+            # fisken kan passere tellelinjen mellom to prosesserte frames.
+            self.frame_skip = int(processing_settings.get("frame_skip", 5))
+            self.frame_skip = max(1, self.frame_skip)
+
+            self.imgsz = int(processing_settings.get("imgsz", 640))
+
+            # Velg trygg device automatisk.
+            # CUDA brukes på GPU-maskiner. På Mac brukes MPS hvis tilgjengelig,
+            # ellers CPU. Dette hindrer at Mac prøver å bruke device=0/CUDA.
+            self.device = processing_settings.get("device", "auto")
+
+            if self.device == "auto":
+                try:
+                    import torch
+
+                    if torch.cuda.is_available():
+                        self.device = "cuda"
+                    elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+                        self.device = "mps"
+                    else:
+                        self.device = "cpu"
+                except Exception:
+                    self.device = "cpu"
+
+            self.half = bool(processing_settings.get("half", False))
+
+            # FP16/half er primært trygt på CUDA. På Mac MPS/CPU skrur vi det av.
+            if self.device != "cuda":
+                self.half = False
 
             self.image_paths = []
             self.image_iterator = None
-            print(f"[START] Video opened: {video_path} (frame_skip={self.frame_skip})")
+
+            print(
+                f"[START] Video opened: {video_path} "
+                f"(frame_skip={self.frame_skip}, device={self.device}, half={self.half})"
+            )
 
         else:
             self.image_paths = self._collect_image_paths()
             self.image_iterator = iter(self.image_paths)
+            self.video_capture = None
+
             print(f"[START] Image folder loaded: {len(self.image_paths)} images")
 
         self.frame_index = 0
         self.processing_finished = False
         self.is_running = True
 
-        print(f"[START] mode={input_mode}")
-        print(f"[START] total frames loaded: {len(self.image_paths)}")
+        print(f"[START] mode={self.input_mode}")
 
     def step(self):
+        """
+        Prosesserer én frame eller ett bilde i pipeline.
+
+        Flyt:
+        1. Leser neste videoframe eller bildefil.
+        2. Kjører tracking.
+        3. Sender tracked objects til counter.
+        4. Oppdaterer session dersom nye fisk er telt.
+        5. Sender usikre, men telte, observasjoner til active learning.
+        """
         if not self.is_running:
             return
 
         #print(f"[STEP] frame_index={self.frame_index}")
 
         if self.input_mode == "video":
-            frame = None
-            success = False
+            if self.video_capture is None:
+                self.is_running = False
+                self.processing_finished = True
+                return
 
-            # LØSNING: Bruk grab() for å hoppe over frames lynraskt uten CPU-dekoding
-            for _ in range(self.frame_skip - 1):
-                self.video_capture.grab() 
-            
-            # Bruk read() KUN på den framen du faktisk skal sende til YOLO
+            # LØSNING: Bruk grab() for å hoppe over frames lynraskt uten CPU-dekoding.
+            # Lav frame_skip gir bedre telling, men høyere CPU/GPU-belastning.
+            # For høy frame_skip kan gjøre at fisken passerer tellelinjen mellom
+            # to prosesserte frames.
+            skip = max(1, int(self.frame_skip))
+
+            for _ in range(skip - 1):
+                if self.video_capture is not None:
+                    self.video_capture.grab()
+
+            if self.video_capture is None:
+                self.is_running = False
+                self.processing_finished = True
+                return
+
+            # Bruk read() KUN på den framen du faktisk skal sende til YOLO.
             success, frame = self.video_capture.read()
 
             if not success:
                 print("[VIDEO] No more frames → processing finished")
+
                 if self.video_capture is not None:
                     self.video_capture.release()
                     self.video_capture = None
+
+                # Input er ferdig, men økten lagres ikke automatisk her.
+                # Skipperen avslutter økten selv med STOP.
                 self.is_running = False
                 self.processing_finished = True
                 return
@@ -191,13 +281,16 @@ class HomeManager:
                 image_path = next(self.image_iterator)
             except StopIteration:
                 print("[IMAGES] No more images → processing finished")
+
+                # Samme prinsipp som video: input er ferdig, men økten stoppes ikke
+                # automatisk. Brukeren må selv avslutte økten.
                 self.is_running = False
                 self.processing_finished = True
                 return
 
             result = self.tracker.update(str(image_path))
 
-        # === RESTEN AV LOGIKKEN (uendret) ===
+        # === RESTEN AV LOGIKKEN ===
         counted_before = set(self.counter.get_counted_track_ids())
         tracked_objects = result.get("tracked_objects", [])
         original_frame = result.get("original_frame")
@@ -211,37 +304,36 @@ class HomeManager:
 
         counted_after = set(self.counter.get_counted_track_ids())
         newly_counted_ids = counted_after - counted_before
-        new_count = len(newly_counted_ids)
-
-        if new_count > 0:
-            print(f"[COUNT] +{new_count} fish")
 
         if newly_counted_ids:
+            print(f"[COUNT] +{len(newly_counted_ids)} fish")
+
             review_min_confidence, review_max_confidence = self._get_review_thresholds()
-            session = self.session_service.get_active_session()
-            session_id = session.get("session_id") if session else None
 
             for obj in tracked_objects:
                 track_id = obj.get("track_id")
+
                 if track_id not in newly_counted_ids:
                     continue
 
                 class_id = obj.get("class_id")
                 species_name = CLASS_NAMES.get(class_id, f"Ukjent ({class_id})")
+
                 self.session_service.increment_species_count(species_name)
 
-                confidence = obj.get("confidence", 0.0)
+                confidence = float(obj.get("confidence", 0.0))
                 mask_coords = obj.get("mask_coords", [])
 
-                saved_to_review = trigger_hard_example_save(
-                    frame=original_frame,
-                    mask_coords=mask_coords,
-                    conf=confidence,
-                    cls_id=class_id,
-                )
+                if review_min_confidence <= confidence <= review_max_confidence:
+                    saved_to_review = trigger_hard_example_save(
+                        frame=original_frame,
+                        mask_coords=mask_coords,
+                        conf=confidence,
+                        cls_id=class_id,
+                    )
 
-                if saved_to_review:
-                    self.session_service.increment_uncertain_count()
+                    if saved_to_review:
+                        self.session_service.increment_uncertain_count()
 
         self.frame_index += 1
 
@@ -316,3 +408,26 @@ class HomeManager:
             "dataset_path": str(dataset_path),
             "dataset_exists": dataset_path.exists(),
         }
+    
+    def _resolve_processing_device(self) -> str:
+        """
+        Velger trygg prosesseringsenhet for modellen.
+
+        CUDA brukes kun dersom PyTorch faktisk finner en CUDA-GPU.
+        På Mac brukes MPS dersom tilgjengelig, ellers CPU. Dette hindrer at
+        Mac prøver å bruke device=0/CUDA eller TensorRT-spesifikke innstillinger.
+        """
+        try:
+            import torch
+
+            if torch.cuda.is_available():
+                return "cuda"
+
+            if platform.system() == "Darwin":
+                if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+                    return "mps"
+
+        except Exception:
+            pass
+
+        return "cpu"

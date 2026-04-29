@@ -1,3 +1,14 @@
+"""
+Home-side for ACES Streamlit-dashboard.
+
+Siden viser aktiv tur og fangstøkt, starter og stopper økter,
+viser live telling, estimert vekt, artsfordeling og antall usikre
+deteksjoner til gjennomgang.
+
+Selve prosesseringen kjøres i bakgrunnstråd via HomeService/HomeManager.
+Denne siden leser oppdatert status og rerunner periodisk for å vise nye tall.
+"""
+
 import streamlit as st
 import time
 
@@ -306,6 +317,6 @@ def render_home_page() -> None:
         )
 
     if service.is_running():
-        service.step()
+        #service.step()
         time.sleep(1.0)
         st.rerun()

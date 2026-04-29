@@ -77,10 +77,6 @@ runs/
 # Outputs (keep structure only)
 # ----------------------------
 
-# ----------------------------
-# Outputs (keep structure only)
-# ----------------------------
-
 outputs/*
 !outputs/.gitkeep
 !outputs/weights/
