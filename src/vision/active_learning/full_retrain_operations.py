@@ -46,19 +46,22 @@ class FullRetrainOperations:
         self.VAL_SPLIT = 0.2        # 20% til validering
         self.FORGIVENESS = 0.05     # Tillatt dropp i total mAP50 pga ny art
 
-    def run(self):
+    def run(self, ready_classes: list[int] = None):
         print("\n" + "=" * 50)
         print("🚀 STARTER FULL RETRENING (NYE ARTER)")
         print("=" * 50)
 
-        # 1. Sjekk karantenekøen
-        ready_classes = self._check_new_species_queue()
+        # 1. Sjekk karantenekøen hvis den ikke ble sendt inn fra start-skriptet
+        if not ready_classes:
+            ready_classes = self._check_new_species_queue()
+            
         if not ready_classes:
             print("💤 Ingen nye arter har nådd grensen enda. Avbryter.")
             return
 
         # 2. Finn filene (Gullgraver - MEN IKKE FLYTT DEM ENDA)
         train_stems, val_stems = self._get_new_species_files(ready_classes)
+        # ... (resten av koden fortsetter som før)
         if not train_stems and not val_stems:
             return
 
@@ -162,9 +165,9 @@ class FullRetrainOperations:
             torch.cuda.empty_cache()
         gc.collect()
 
-        # 1. Hent score fra den gamle modellen på de NYE dataene
+        # 1. Hent score fra den gamle modellen på de GAMLE dataene (Baseline)
         old_map = YOLO(str(self.current_model), task="segment").val(
-            data=str(temp_yaml_path), split="val", plots=False
+            data=str(self.master_yaml_path), split="val", plots=False # <--- ENDRET HER!
         ).seg.map50
 
         # 2. Start Full Trening
@@ -176,7 +179,7 @@ class FullRetrainOperations:
         model = YOLO(str(self.current_model), task="segment")
         model.train(
             data=str(temp_yaml_path),
-            epochs=200,
+            epochs=2,
             batch=16,
             lr0=0.01,
             patience=50,  # Stopper tidlig hvis den flater ut
