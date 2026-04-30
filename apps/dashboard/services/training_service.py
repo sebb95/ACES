@@ -38,6 +38,13 @@ class TrainingService:
         self.settings_service.update(config)
 
     def run_training(self):
+
+        """
+        Starter treningsprosess i en bakgrunnstråd.
+
+        Setter status til "running" og kjører treningsjobben asynkront
+        slik at UI og øvrige systemfunksjoner ikke blokkeres.
+        """
         self._set_status("running")
         
         # Starter treningen i en egen tråd
@@ -45,6 +52,13 @@ class TrainingService:
         thread.start()
 
     def _training_task(self):
+
+        """
+        Intern treningsjobb som kjøres i egen tråd.
+
+        Initialiserer NightOperations og kjører trening på godkjente data.
+        Oppdaterer status til "ready" ved suksess eller "failed" ved feil.
+        """
         
         os.environ["STREAMLIT_LOGGER_LEVEL"] = "error"
         logging.getLogger("streamlit").setLevel(logging.ERROR)
@@ -64,10 +78,23 @@ class TrainingService:
             raise
 
     def get_status(self) -> str:
+        
+        """
+        Returnerer gjeldende treningsstatus fra konfigurasjon.
+        """
         config = self.settings_service.get()
         return config.get("training", {}).get("status", "idle")
     
     def maybe_run_scheduled_training(self) -> None:
+        """
+        Sjekker om natt-trening skal startes basert på tidspunkt og innstillinger.
+
+        Starter trening dersom:
+        - natt-trening er aktivert
+        - systemet ikke allerede trener
+        - klokkeslett matcher planlagt tidspunkt
+        - trening ikke allerede er kjørt samme dag
+        """
         config = self.settings_service.get()
         training = config.get("training", {})
 
@@ -91,6 +118,12 @@ class TrainingService:
             self.run_training()
 
     def recover_if_stuck(self) -> None:
+        """
+        Oppdager og håndterer fastlåst treningsstatus.
+
+        Dersom status er "running" uten oppdatering over en gitt tidsperiode,
+        settes status til "failed" for å indikere avbrutt eller krasjet trening.
+        """
         config = self.settings_service.get()
         training = config.get("training", {})
 
