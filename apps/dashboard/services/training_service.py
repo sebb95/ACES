@@ -8,6 +8,25 @@ from services.settings_service import SettingsService
 
 
 class TrainingService:
+    """
+    Tjenestelag for håndtering av modelltrening i ACES.
+
+    Klassen fungerer som et kontrollpunkt mellom UI, konfigurasjon og
+    treningslogikk (NightOperations). Den er ansvarlig for å starte,
+    overvåke og planlegge trening, samt oppdatere treningsstatus i
+    runtime_config.
+
+    Ansvar:
+    - starte trening i bakgrunnstråd (ikke-blokkerende for UI)
+    - oppdatere treningsstatus (idle / running / ready / failed)
+    - trigge nattkjøring basert på konfigurasjon (scheduled training)
+    - håndtere enkel feildeteksjon (f.eks. stuck "running"-status)
+    - koble treningslogikk til godkjente data fra review
+
+    Merk:
+    - Selve treningslogikken ligger i NightOperations
+    - Klassen håndterer kun orkestrering og status
+    """
     def __init__(self):
         self.settings_service = SettingsService()
 

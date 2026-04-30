@@ -2,12 +2,38 @@ from typing import Any
 
 
 class WeightManager:
+    """
+    Beregner estimert fangstvekt basert på antall fisk per art.
+
+    Klassen mottar artsfordeling fra en økt eller tur, samt konfigurerte
+    gjennomsnittsvekter per art fra runtime_config. Den beregner total
+    fangstvekt, vekt per art og egne summer for Torsk, Sei og Bifangst.
+
+    Vektberegningen er en prototypebasert estimatmodell:
+        estimert vekt = antall fisk * gjennomsnittsvekt per art
+
+    Ansvar:
+    - beregne total_count og total_weight_kg
+    - beregne artsvis vektfordeling
+    - skille ut Torsk og Sei som hovedarter
+    - aggregere øvrige arter som Bifangst
+    """
     TARGET_SPECIES = {"Torsk", "Sei"}
 
     def __init__(self, species_weights: dict[str, float]) -> None:
         self.species_weights = species_weights or {}
 
     def calculate(self, species_counts: dict[str, int]) -> dict[str, Any]:
+        """
+        Beregner vektoppsummering fra artsfordeling.
+
+        Args:
+            species_counts: Dictionary med artsnavn som nøkkel og antall fisk som verdi.
+
+        Returns:
+            Dictionary med totalantall, totalvekt, egne summer for Torsk og Sei,
+            aggregert Bifangst og full artsvis fordeling.
+        """
         species_breakdown = {}
 
         total_count = 0
