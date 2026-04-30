@@ -6,6 +6,19 @@ from pathlib import Path
 
 
 class TripService:
+    """
+    Håndterer opprettelse, oppdatering og avslutning av turer.
+
+    En tur representerer en overordnet tidsperiode som kan inneholde
+    flere økter. Klassen sørger for at det alltid finnes en aktiv tur,
+    og at økter kobles korrekt til denne.
+
+    Ansvar:
+    - opprette ny tur dersom ingen er aktiv
+    - lagre og oppdatere turdata
+    - håndtere navn på tur
+    - avslutte tur og arkivere den
+    """
     def __init__(self) -> None:
         self.trips_dir = Path("data/history/trips")
         self.active_trip_path = Path("data/history/active_trip.json")

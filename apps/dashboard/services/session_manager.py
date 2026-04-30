@@ -5,6 +5,13 @@ from pathlib import Path
 
 
 class SessionManager:
+    """
+    Lavnivå-komponent for lagring av økter til disk.
+
+    Klassen håndterer skriving av sesjonsdata som JSON-filer i
+    historikkmappen. Den inneholder ingen logikk for oppdatering,
+    kun persistens.
+    """
     def __init__(self, sessions_dir: str = "data/history/sessions") -> None:
         self.sessions_dir = Path(sessions_dir)
         self.sessions_dir.mkdir(parents=True, exist_ok=True)

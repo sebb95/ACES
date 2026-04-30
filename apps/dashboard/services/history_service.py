@@ -8,7 +8,14 @@ from services.weight_manager import WeightManager
 
 
 class HistoryService:
-    """UI-facing adapter for the history page."""
+    """
+    Adapter mellom lagrede historikkdata og UI.
+
+    Klassen leser økter fra disk via HistoryManager, grupperer dem per tur,
+    og beregner aggregerte statistikker som total fangst og estimert vekt.
+
+    Resultatet brukes direkte av History-siden i brukergrensesnittet.
+    """
 
     def __init__(self) -> None:
         self.manager = HistoryManager()

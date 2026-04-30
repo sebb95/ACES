@@ -7,6 +7,20 @@ from services.trip_service import TripService
 
 
 class SessionService:
+    
+    """
+    Tjenestelag for håndtering av aktive økter (sessions) i systemet.
+
+    Klassen fungerer som et mellomlag mellom runtime-pipelinen og lagring,
+    og er ansvarlig for å opprette, oppdatere og avslutte økter.
+
+    Ansvar:
+    - opprette ny økt ved start
+    - oppdatere tellinger og statistikk fortløpende
+    - utføre autosave under kjøring
+    - lagre ferdig økt til disk via SessionManager
+    - koble økt til aktiv tur via TripService
+    """
     def __init__(self) -> None:
         self.manager = SessionManager()
         self.trip_service = TripService()

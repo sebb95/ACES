@@ -1,5 +1,3 @@
-#lägga till senare: export a session; filter by trip; validate schema
-
 
 from __future__ import annotations
 
@@ -8,7 +6,13 @@ from pathlib import Path
 
 
 class HistoryManager:
-    """Backend for loading saved history sessions from disk."""
+    """
+    Lavnivå-komponent for lesing av historikkdata fra disk.
+
+    Klassen laster alle lagrede økter fra JSON-filer og returnerer
+    dem som strukturerte Python-objekter. Den inneholder ingen
+    aggregeringslogikk.
+    """
 
     def __init__(self) -> None:
         self.sessions_dir = Path("data/history/sessions")
