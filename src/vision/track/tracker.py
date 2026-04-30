@@ -7,14 +7,19 @@ from ultralytics import YOLO
 
 class FishTracker:
     """
-    Runtime fish tracker using Ultralytics YOLO tracking mode with ByteTrack.
+    Runtime-tracker for fisk ved bruk av Ultralytics YOLO tracking mode
+    med ByteTrack.
 
-    Responsibilities:
-    - load trained YOLO weights
-    - run tracking on sequential frames
-    - preserve track identities across frames
-    - save annotated tracking outputs
-    - return structured tracked objects
+    Klassen kombinerer deteksjon og sporing i runtime-pipelinen. Modellen
+    finner fisk i hvert frame, mens ByteTrack tildeler stabile track_id-er
+    slik at samme objekt kan følges over flere frames.
+
+    Ansvar:
+    - laste inn trente YOLO-segmenteringsvekter
+    - kjøre tracking på bilder eller videoframes
+    - bevare track identities mellom frames
+    - hente ut strukturerte objekter til tellelogikken
+    - returnere originalframe for eventuell active learning-lagring
     """
 
     def __init__(
@@ -39,15 +44,15 @@ class FishTracker:
         save_dir: str = "outputs/runs/track",
     ) -> dict[str, Any]:
         """
-        Run ByteTrack on one frame.
+        Kjører tracking på ett bilde fra fil.
+
+        Brukes når input er et bildesett. Resultatet inneholder objekter med
+        track_id, bounding box, klasse, confidence, senterpunkt og eventuelle
+        segmenteringskoordinater.
 
         Returns:
-            {
-                image_path,
-                tracked_objects,
-                num_tracks,
-                saved_image
-            }
+            Dictionary med bildebane, tracked objects, antall tracks,
+            lagringssti for annotert bilde og originalframe.
         """
         image_path = Path(image_path)
         save_dir = Path(save_dir)
@@ -119,10 +124,21 @@ class FishTracker:
         }
 
     def reset(self) -> None:
-        """Reset tracking state."""
+        """
+        Nullstiller tracking-tilstanden ved å laste modellen på nytt.
+
+        Brukes ved oppstart av en ny uavhengig telleøkt for å unngå at gamle
+        track_id-er og intern tracker-state påvirker ny prosessering.
+        """
         self.model = YOLO(str(self.weights_path), task="segment")
 
     def set_weights_path(self, weights_path: str) -> None:
+        """
+        Oppdaterer modellvektene som brukes av trackeren.
+
+        Args:
+            weights_path: Sti til ny YOLO-vektfil.
+        """
         self.weights_path = Path(weights_path)
 
         if not self.weights_path.exists():
@@ -136,6 +152,21 @@ class FishTracker:
         frame_name: str,
         save_dir: str = "outputs/runs/track",
     ) -> dict[str, Any]:
+        """
+        Kjører tracking direkte på ett videoframe.
+
+        Brukes i videomodus, der frames leses fra cv2.VideoCapture og sendes
+        direkte til modellen uten først å lagres som bildefiler.
+
+        Args:
+            frame: OpenCV-frame som skal analyseres.
+            frame_name: Logisk navn/id for framen.
+            save_dir: Mappe for eventuell lagring av annotert output.
+
+        Returns:
+            Dictionary med frame-navn, tracked objects, antall tracks,
+            lagringssti for annotert bilde og originalframe.
+        """
         save_dir = Path(save_dir)
         save_dir.mkdir(parents=True, exist_ok=True)
 

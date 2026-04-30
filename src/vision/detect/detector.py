@@ -9,20 +9,26 @@ import cv2
 
 class FishDetector:
     """
-    Runtime detector for fish images using a trained YOLO model.
+    Separat deteksjonsmodul for fiskebilder ved bruk av en trent YOLO-modell.
 
-    Responsibilities:
-    - load trained weights
-    - run inference on an input image
-    - extract structured detection results
-    - save annotated output images
+    Klassen brukes til testing, debugging og eventuell videre modulær
+    implementasjon av deteksjonssteget. I runtime-pipelinen utføres deteksjon
+    hovedsakelig gjennom Ultralytics sin `model.track()`-funksjon i FishTracker.
+
+    Ansvar:
+    - laste inn trente YOLO-vekter
+    - kjøre inferens på enkeltbilder
+    - hente ut strukturerte deteksjonsresultater
+    - lagre annoterte bilder for inspeksjon
     """
 
     def __init__(self, weights_path: str, conf: float = 0.25) -> None:
         """
-        Initialize the detector.
-        Args: weights_path: Path to trained YOLO weights (.pt file)
-        conf: Confidence threshold for detections
+        Initialiserer detektoren med modellvekter og confidence-threshold.
+
+        Args:
+            weights_path: Sti til trente YOLO-vekter (.pt-fil).
+            conf: Minimum confidence for at en deteksjon skal tas med.
         """
         self.weights_path = Path(weights_path)
         self.conf = conf
@@ -34,18 +40,15 @@ class FishDetector:
 
     def detect(self, image_path: str, save_dir: str = "outputs/runs/detect") -> dict[str, Any]:
         """
-        Run detection on one image.
+        Kjører deteksjon på ett bilde og returnerer strukturerte resultater.
 
         Args:
-            image_path: Path to input image
-            save_dir: Directory where annotated output image will be stored
+            image_path: Sti til bildet som skal analyseres.
+            save_dir: Mappe der annotert output-bilde lagres.
 
         Returns:
-            Dictionary containing:
-            - image_path
-            - detections
-            - num_detections
-            - saved_image
+            Dictionary med bildebane, liste over deteksjoner, antall deteksjoner
+            og sti til lagret annotert bilde.
         """
         image_path = Path(image_path)
         save_dir = Path(save_dir)
@@ -94,16 +97,16 @@ class FishDetector:
 
     def detections_for_tracker(self, detections: list[dict[str, Any]]) -> list[list[float]]:
         """
-        Convert structured detections to tracker-friendly format.
+        Konverterer strukturerte deteksjoner til tracker-kompatibelt format.
 
-        Expected output format:
-        [x1, y1, x2, y2, score]
+        Output-format:
+            [x1, y1, x2, y2, score]
 
         Args:
-            detections: List of structured detection dictionaries
+            detections: Liste med deteksjoner fra detect().
 
         Returns:
-            List of detections in tracker-friendly format
+            Liste med bounding boxes og confidence-score til bruk i tracking.
         """
         tracker_input = []
 

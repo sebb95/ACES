@@ -7,22 +7,20 @@ from typing import Dict, List, Optional
 @dataclass
 class CountConfig:
     """
-    Configuration for line-crossing counting.
+    Konfigurasjon for linjebasert telling.
 
     Attributes:
-        line_position: Position of the counting line in pixels.
-            - if axis="y", this means horizontal line at y=line_position
-            - if axis="x", this means vertical line at x=line_position
-        axis: Axis used for crossing detection:
-            - "y" for top/bottom movement
-            - "x" for left/right movement
-        line_margin: Half-width of neutral band around line
-        min_positions: Minimum observations before counting
-        max_missing_frames: Remove stale tracks after this many missing frames
-        direction: Allowed crossing direction:
-            - "positive": increasing coordinate
-            - "negative": decreasing coordinate
-            - "any": both directions
+        line_position: Posisjon til tellelinjen i piksler.
+            Ved axis="y" brukes horisontal linje.
+            Ved axis="x" brukes vertikal linje.
+        axis: Aksen som brukes for kryssingsdeteksjon.
+            "y" for bevegelse opp/ned.
+            "x" for bevegelse venstre/høyre.
+        line_margin: Halv bredde på nøytral sone rundt tellelinjen.
+        min_positions: Minimum antall observasjoner før et objekt kan telles.
+        max_missing_frames: Antall frames før tapte tracks fjernes.
+        direction: Tillatt kryssingsretning:
+            "positive", "negative" eller "any".
     """
     line_position: float = 600.0
     axis: str = "x"
@@ -35,7 +33,10 @@ class CountConfig:
 @dataclass
 class TrackState:
     """
-    Internal state for one tracked fish.
+    Intern tilstand for ett sporet objekt.
+
+    Lagrer posisjonshistorikk, sonehistorikk og informasjon om objektet
+    allerede er telt. Brukes for å sikre at hver track_id kun telles én gang.
     """
     track_id: int
     centers: List[List[float]] = field(default_factory=list)
@@ -47,28 +48,17 @@ class TrackState:
 
 class LineCounter:
     """
-    Count fish by detecting line crossings from tracker output.
+    Teller fisk ved å analysere linjekryssing basert på tracker-output.
 
-    Expected input per frame:
-        tracked_objects = [
-            {
-                "track_id": int | None,
-                "bbox": [x1, y1, x2, y2],
-                "confidence": float,
-                "class_id": int,
-                "center": [cx, cy],
-            },
-            ...
-        ]
+    Klassen mottar tracked objects fra FishTracker og følger hvert objekt
+    over tid basert på track_id. For hvert objekt lagres senterpunkter og
+    posisjon relativt til en virtuell tellelinje.
 
-    Strategy:
-    - keep center history for each track_id
-    - convert each center to a zone relative to the horizontal line:
-        "before" / "middle" / "after"
-    - count only when a track moves across the full pattern:
-        before -> middle -> after   (down)
-        after -> middle -> before   (up)
-    - count each track_id only once
+    Tellelogikk:
+    - hvert objekt plasseres i sonene "before", "middle" eller "after"
+    - et objekt telles når det følger et gyldig kryssingsmønster
+    - hvert track_id telles kun én gang
+    - gamle tracks fjernes automatisk etter et definert antall frames
     """
 
     def __init__(self, config: CountConfig) -> None:
@@ -79,14 +69,14 @@ class LineCounter:
 
     def update(self, tracked_objects: List[dict], frame_index: int) -> int:
         """
-        Update counter with tracker output from a single frame.
+        Oppdaterer telleren med tracked objects fra én frame.
 
         Args:
-            tracked_objects: List of tracked objects from FishTracker.update()["tracked_objects"]
-            frame_index: Sequential frame number
+            tracked_objects: Liste med objekter fra FishTracker.
+            frame_index: Sekvensielt frame-nummer.
 
         Returns:
-            Number of newly counted fish in this frame
+            Antall nye fisk som ble telt i denne framen.
         """
         new_counts = 0
 
@@ -138,17 +128,26 @@ class LineCounter:
         return new_counts
 
     def get_total_count(self) -> int:
+        """
+        Returnerer totalt antall fisk telt siden siste reset.
+        """
         return self.total_count
 
     def get_counted_track_ids(self) -> List[int]:
+        """
+        Returnerer kopi av listen over track_id-er som allerede er telt.
+        """
         return self.counted_track_ids.copy()
 
     def get_track_states(self) -> Dict[int, TrackState]:
+        """
+        Returnerer intern track-state for alle aktive tracks.
+        """
         return self.tracks
 
     def reset(self) -> None:
         """
-        Reset counter state for a new independent sequence.
+        Nullstiller tellerens interne tilstand for en ny uavhengig sekvens.
         """
         self.tracks.clear()
         self.total_count = 0
@@ -156,7 +155,10 @@ class LineCounter:
 
     def _get_zone(self, position_value: float) -> str:
         """
-        Convert x or y position into a zone relative to the counting line.
+        Konverterer en x- eller y-posisjon til sone relativt til tellelinjen.
+
+        Returns:
+            "before", "middle" eller "after".
         """
         line_position = self.config.line_position
         margin = self.config.line_margin
@@ -169,12 +171,10 @@ class LineCounter:
 
     def _compress_zones(self, zones: List[str]) -> List[str]:
         """
-        Remove consecutive duplicates.
+        Fjerner etterfølgende duplikater fra sonehistorikken.
 
-        Example:
-            ["before", "before", "middle", "middle", "after"]
-        becomes:
-            ["before", "middle", "after"]
+        Dette gjør at lange perioder i samme sone ikke påvirker
+        kryssingsmønsteret.
         """
         if not zones:
             return []
@@ -188,7 +188,8 @@ class LineCounter:
 
     def _should_count(self, state: TrackState) -> bool:
         """
-        Decide whether this track has completed a valid crossing.
+        Vurderer om et track har fullført et gyldig kryssingsmønster
+        og dermed skal telles.
         """
         if len(state.centers) < self.config.min_positions:
             return False
@@ -212,7 +213,7 @@ class LineCounter:
     @staticmethod
     def _contains_pattern(sequence: List[str], pattern: List[str]) -> bool:
         """
-        Check whether pattern appears contiguously inside sequence.
+        Sjekker om et bestemt sonemønster finnes i sekvensen.
         """
         if len(sequence) < len(pattern):
             return False
@@ -225,7 +226,7 @@ class LineCounter:
 
     def _cleanup_old_tracks(self, current_frame: int) -> None:
         """
-        Remove tracks that have disappeared for too long.
+        Fjerner tracks som ikke har vært observert på for mange frames.
         """
         to_remove = []
 
