@@ -1,5 +1,4 @@
-#Handles reading model training configuration (image size, epochs, batch size, dataset path, etc).
-#Prevents hardcoding parameters inside training script.
+#Läser modell trening config (image size, epochs, batch size, dataset path, etc).
 
 
 from dataclasses import dataclass
@@ -17,11 +16,11 @@ class TrainConfig:
     # Data
     data_yaml: str = "data/sample/dataset.yaml" #point to dataset yaml file
 
-    # Training hyperparameters
-    epochs: int = 1 #adjust as needed
+    # Trening hyperparameters
+    epochs: int = 1 #ändra vid behov
     imgsz: int = 640
-    batch: int = 8 #reduced for smaller hardware
-    workers: int = 2 #lighter to avoid multiprocessing
+    batch: int = 8 #reducert for mindre hårdvara
+    workers: int = 2 #lättare för å undvicka multiprocessering
     device: str = "cuda" if torch.cuda.is_available() else "cpu"
 
     # Output
@@ -44,7 +43,7 @@ class TrainConfig:
 
 @dataclass(frozen=True)
 class InferConfig:
-    # Inference should use trained weights by default
+    # Inference bruker trained weights by default
     weights_path: str = "outputs/weights/baseline_best.pt"
     source: str = "data/sample/val/images" #default sample destination, replace with actual directory with frames
 

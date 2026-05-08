@@ -42,7 +42,7 @@ class HomeManager:
         self.frame_index = 0
         self.input_mode = "images"
         self.video_capture = None
-        self.frame_skip = 0 #30FPS / 1 = 30 bilder per sec <- default
+        self.frame_skip = 1 #30FPS / 1 = 30 bilder per sec <- default
         self.processing_finished = False
 
     def _get_settings(self) -> dict:
@@ -166,6 +166,7 @@ class HomeManager:
             # Justerbar frame skipping.
             # Viktig: for høy frame_skip kan ødelegge linjebasert telling fordi
             # fisken kan passere tellelinjen mellom to prosesserte frames.
+            # för høyre hastighet prøv: frameskip=5, imgsz=416
             self.frame_skip = int(processing_settings.get("frame_skip", 1))
             self.frame_skip = max(1, self.frame_skip)
 

@@ -1,5 +1,4 @@
-# Entry point for training a fresh model from labeled data.
-# This is the file we run to start baseline training.
+# Entry point for å trena modell på annotert data.
 
 import shutil
 from pathlib import Path
@@ -12,20 +11,20 @@ from .dataset import validate_data_yaml, dataset_statistics
 def main():
     cfg = TrainConfig()
 
-    # Validate dataset before training starts
+    # Validere datasett
     data_info = validate_data_yaml(cfg.data_yaml)
     dataset_statistics(data_info)
 
-    # Create output folders
+    # Danne output mapper
     cfg.runs_dir().mkdir(parents=True, exist_ok=True)
     cfg.weights_dir().mkdir(parents=True, exist_ok=True)
 
     run_name = cfg.resolved_run_name()
 
-    # Create model
+    # Modell instance
     model = create_model(cfg)
 
-    # Start training
+    # Starta träning
     model.train(
         data=cfg.data_yaml,
         epochs=cfg.epochs,
@@ -37,7 +36,7 @@ def main():
         name=run_name,
     )
 
-    # Ask Ultralytics where it actually saved the run
+    # Spara Ultralitics statistics og vikter
     run_dir = Path(model.trainer.save_dir)
     best_pt = run_dir / "weights" / "best.pt"
 

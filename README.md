@@ -160,6 +160,16 @@ En sesjon, eller **økt**, representerer én aktiv telleperiode. Når brukeren s
 
 Sesjonsdata autosaves kontinuerlig mens systemet kjører og lagres permanent når brukeren stopper økten. Dette gir dashboardet live-state under drift samtidig som data bevares for senere historikk og eksport.
 
+## Ytelse og prosessering
+
+ACES støtter justering av prosesseringsparametere avhengig av tilgjengelig maskinvare.
+
+Følgende innstillinger kan brukes for å redusere prosesseringsbelastning:
+- `frame_skip` — hopper over frames mellom prosessering
+- `imgsz` — reduserer input-oppløsning til modellen
+- `device` — automatisk valg mellom CUDA, MPS eller CPU
+
+Lavere `imgsz` og høyere `frame_skip` gir høyere prosesseringshastighet på svakere maskinvare, men kan redusere nøyaktighet og tracking-stabilitet.
 
 
 

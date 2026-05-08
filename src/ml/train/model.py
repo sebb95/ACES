@@ -1,11 +1,11 @@
-#imports model and crweates model instance
+#importerer modell og danner modell instance
 
 from ultralytics import YOLO
 from pathlib import Path
 from .config import TrainConfig, InferConfig
 
 def create_model(cfg: TrainConfig) -> YOLO:
-    # baseline: just load a pretrained YOLO checkpoint
+    # baseline: laste pretrained modell checkpoint
     return YOLO(cfg.base_weights)
 
 def load_model(weights_path: str) -> YOLO:

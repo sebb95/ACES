@@ -285,16 +285,27 @@ class NightOperations:
                 backups.pop(0).unlink()
 
             shutil.copy(new_pt, self.curr_pt)
-            print("⚙️ Konverterer til TensorRT for Edge Inference...")
-            try:
-                eng_path = Path(
-                    YOLO(str(new_pt.resolve())).export(format="engine", half=True, device=0)
-                )
-                if self.prod_engine.exists():
-                    self.prod_engine.unlink()
-                shutil.move(str(eng_path), str(self.prod_engine))
-            except Exception as e:
-                print("⚠️ TensorRT eksport feilet. (Ignorer hvis TensorRT ikke er installert)")
+            if torch.cuda.is_available():
+                print("⚙️ Konverterer til TensorRT for Edge Inference...")
+                try:
+                    eng_path = Path(
+                        YOLO(str(new_pt.resolve())).export(
+                            format="engine",
+                            half=True,
+                            device=0,
+                        )
+                    )
+
+                    if self.prod_engine.exists():
+                        self.prod_engine.unlink()
+
+                    shutil.move(str(eng_path), str(self.prod_engine))
+
+                except Exception:
+                    print("⚠️ TensorRT eksport feilet. (Ignorer hvis TensorRT ikke er installert)")
+
+            else:
+                print("⚠️ Hopper over TensorRT eksport: CUDA er ikke tilgjengelig.")
         else:
             print("❌ QUALITY GATE FEILET. Kastes. Beholder gammel modell.")
 

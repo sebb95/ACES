@@ -220,18 +220,29 @@ class FullRetrainOperations:
                 label_dirs=[self.master_train_lbl, self.master_val_lbl]
             )
             
-            print("⚙️ Konverterer til TensorRT (production.engine)...")
-            try:
-                eng_path = YOLO(str(self.current_model), task="segment").export(
-                    format="engine", half=True, device=0, imgsz=640
-                )
-                prod_engine = self.weights_dir / "production.engine"
-                if prod_engine.exists():
-                    prod_engine.unlink()
-                shutil.move(str(eng_path), str(prod_engine))
-                print(f"🚀 Klar til bruk! Motor lagret som {prod_engine.name}")
-            except Exception as e:
-                print(f"⚠️ TensorRT eksport feilet: {e}")
+            if torch.cuda.is_available():
+                print("⚙️ Konverterer til TensorRT (production.engine)...")
+                try:
+                    eng_path = YOLO(str(self.current_model), task="segment").export(
+                        format="engine",
+                        half=True,
+                        device=0,
+                        imgsz=640,
+                    )
+
+                    prod_engine = self.weights_dir / "production.engine"
+
+                    if prod_engine.exists():
+                        prod_engine.unlink()
+
+                    shutil.move(str(eng_path), str(prod_engine))
+                    print(f"🚀 Klar til bruk! Motor lagret som {prod_engine.name}")
+
+                except Exception as e:
+                    print(f"⚠️ TensorRT eksport feilet: {e}")
+
+            else:
+                print("⚠️ Hopper over TensorRT eksport: CUDA er ikke tilgjengelig.")
                 
         else:
             print(f"❌ QUALITY GATE FEILET. Droppet mer enn {self.FORGIVENESS*100}%.")

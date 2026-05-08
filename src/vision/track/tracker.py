@@ -177,7 +177,7 @@ class FishTracker:
             persist=True,
             save=False,
             verbose=False,
-            imgsz=640,
+            imgsz=640  #416 eller 640
         )
 
         result = results[0]

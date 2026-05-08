@@ -1,6 +1,5 @@
-# Dataset validation utilities for YOLO training
-# Ensures dataset.yaml exists and dataset structure is correct
-# before starting a training run.
+# Dataset validasjon for Yolo trening.
+# Sjekker hvis dataset.yaml eksisterer og er korrekt strukturert
 
 from pathlib import Path
 import yaml
@@ -8,7 +7,7 @@ import yaml
 
 def validate_data_yaml(data_yaml: str) -> dict:
     """
-    Validate dataset.yaml and return parsed configuration.
+    Validere dataset.yaml og returnerer parced configurasjon.
     """
 
     yaml_path = Path(data_yaml)
@@ -49,7 +48,7 @@ def validate_data_yaml(data_yaml: str) -> dict:
 
 def dataset_statistics(data: dict) -> None:
     """
-    Print simple dataset statistics for verification.
+    Skriver ut eksempel datasett
     """
 
     base_path = Path(data["path"])

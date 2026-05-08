@@ -1,2 +1,0 @@
-#Small helper functions used during training (logging paths, saving metadata, creating run folders).
-
