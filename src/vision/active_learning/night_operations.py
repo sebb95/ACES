@@ -8,6 +8,11 @@ from pathlib import Path
 from datetime import datetime
 from collections import defaultdict
 from ultralytics import YOLO
+import logging
+import warnings
+
+logging.getLogger("streamlit.runtime.scriptrunner_utils.script_run_context").disabled = True
+warnings.filterwarnings("ignore", message="missing ScriptRunContext")
 
 from src.vision.active_learning.yaml_sync import (
     write_master_dataset_yaml,
@@ -243,8 +248,8 @@ class NightOperations:
         model = YOLO(str(self.curr_pt.resolve()))
         model.train(
             data=str(self.yaml_path.resolve()),
-            epochs=15,
-            batch=16,
+            epochs=2,
+            batch=10,
             lr0=0.001,
             mosaic=0.0,
             mixup=0.0,

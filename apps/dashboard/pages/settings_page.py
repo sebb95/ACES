@@ -70,6 +70,9 @@ def render_settings_page() -> None:
     current_input_type = input_config.get("input_type", "image_folder")
     current_dataset_path = input_config.get("dataset_path", "data/sample")
     current_video_path = input_config.get("video_path", "data/input/video.mp4")
+    frame_output_path = input_config.get("frame_output_path", "data/processed/frames/current_run")
+    training_model = training_config.get("selected_model", "best.pt")
+    training_dataset_path = training_config.get("dataset_path", "data/sample")
     
 
     st.markdown(
@@ -330,6 +333,8 @@ def render_settings_page() -> None:
             }
 
             settings_service.update(new_config)
+            if "home_manager" in st.session_state:
+                del st.session_state["home_manager"]
             st.toast("Endringer lagret!", icon="✅")
             time.sleep(0.8)
             st.rerun()
