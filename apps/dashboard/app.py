@@ -14,8 +14,11 @@ Denne filen:
 import sys
 from pathlib import Path
 
-import warnings
 import logging
+import warnings
+
+logging.getLogger("streamlit.runtime.scriptrunner_utils.script_run_context").disabled = True
+warnings.filterwarnings("ignore", message="missing ScriptRunContext")
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -37,60 +40,70 @@ from pages.settings_page import render_settings_page
 from pathlib import Path
 from services.training_service import TrainingService
 
+        
+        
+        
+def main():
 
-st.set_page_config(
-    page_title="ACES Dashboard",
-    page_icon="🎣",
-    layout="wide",
-)
 
-if "training_startup_checked" not in st.session_state:
-    training_service = TrainingService()
-    training_service.recover_if_stuck()
-    training_service.maybe_run_scheduled_training()
-    st.session_state["training_startup_checked"] = True
+    st.set_page_config(
+        page_title="ACES Dashboard",
+        page_icon="🎣",
+        layout="wide",
+    )
 
-st.markdown(
-    """
-    <style>
-    .block-container {
-        padding-top: 3rem;
-        padding-bottom: 1rem;
-        padding-left: 1.2rem;
-        padding-right: 1.2rem;
-        max-width: 100%;
-    }
+    if "training_startup_checked" not in st.session_state:
+        training_service = TrainingService()
+        training_service.recover_if_stuck()
+        training_service.maybe_run_scheduled_training()
+        st.session_state["training_startup_checked"] = True
 
-    div[data-testid="stHorizontalBlock"] > div {
-        width: 100%;
-    }
+    st.markdown(
+        """
+        <style>
+        .block-container {
+            padding-top: 3rem;
+            padding-bottom: 1rem;
+            padding-left: 1.2rem;
+            padding-right: 1.2rem;
+            max-width: 100%;
+        }
 
-    .stButton > button {
-        height: 3rem;
-        font-size: 1rem;
-        font-weight: 600;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
+        div[data-testid="stHorizontalBlock"] > div {
+            width: 100%;
+        }
 
-if "current_page" not in st.session_state:
-    st.session_state["current_page"] = "home"
+        .stButton > button {
+            height: 3rem;
+            font-size: 1rem;
+            font-weight: 600;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
-render_top_nav()
-st.write("")
+    if "current_page" not in st.session_state:
+        st.session_state["current_page"] = "home"
 
-page = st.container()
+    render_top_nav()
+    st.write("")
 
-with page:
-    current_page = st.session_state["current_page"]
+    page = st.container()
 
-    if current_page == "home":
-        render_home_page()
-    elif current_page == "review":
-        render_review_page()
-    elif current_page == "history":
-        render_history_page()
-    elif current_page == "settings":
-        render_settings_page()
+    with page:
+        current_page = st.session_state["current_page"]
+
+        if current_page == "home":
+            render_home_page()
+        elif current_page == "review":
+            render_review_page()
+        elif current_page == "history":
+            render_history_page()
+        elif current_page == "settings":
+            render_settings_page()
+  
+    
+
+if __name__ == "__main__":
+    main()
